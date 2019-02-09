@@ -23,6 +23,9 @@ Ros2V4L2Camera::Ros2V4L2Camera()
 : rclcpp::Node{"ros2_v4l2_camera"}
 {
   camera_ = std::make_shared<V4l2Camera>("/dev/video0");
+  if (!camera_->open())
+    return;
+  
   image_pub_ = image_transport::create_publisher(this, "/image_raw");
 
   capture_timer_ = create_wall_timer(
