@@ -4,5 +4,5 @@ build:
   stage: build
   script:
   - pip3 install -U pytest colcon-common-extensions
-  - git clone https://github.com/ros-perception/image_common.git
+  - git clone --branch 2.0.1 --depth 1 https://github.com/ros-perception/image_common.git
   - colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug
