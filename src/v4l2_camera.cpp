@@ -6,6 +6,8 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
+#include <sensor_msgs/image_encodings.hpp>
+
 using namespace ros2_v4l2_camera;
 using namespace sensor_msgs::msg;
 
@@ -62,22 +64,86 @@ bool V4l2Camera::open()
   return true;
 }
 
-void V4l2Camera::start()
+bool V4l2Camera::start()
 {
+  if (!initMemoryMapping())
+    return false;
+
+  // Queue the buffers
+  for (auto const& buffer : buffers_)
+  {
+    auto buf = v4l2_buffer{};
+    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buf.memory = V4L2_MEMORY_MMAP;
+    buf.index = buffer.index;
+
+    if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf))
+    {
+      RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+        std::string{"Buffer failure on capture start: "}
+        + strerror(errno) + " (" + std::to_string(errno) + ")");
+      return false;
+    }
+  }
+
+  // Start stream
+  unsigned type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  if (-1 == ioctl(fd_, VIDIOC_STREAMON, &type))
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+      std::string{"Failed stream start: "}
+      + strerror(errno) + " (" + std::to_string(errno) + ")");
+    return false;
+  }
+  return true;
 }
 
-void V4l2Camera::stop()
+bool V4l2Camera::stop()
 {
+  // Stop stream
+  unsigned type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  if (-1 == ioctl(fd_, VIDIOC_STREAMOFF, &type))
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+      std::string{"Failed stream stop"});
+    return false;
+  }
+
+  return true;
 }
 
 Image V4l2Camera::capture()
 {
+  auto buf = v4l2_buffer{};
+
+  buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  buf.memory = V4L2_MEMORY_MMAP;
+
+  if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf))
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+      std::string{"Error dequeueing buffer: "}
+      + strerror(errno) + " (" + std::to_string(errno) + ")");
+    return Image{};
+  }
+
+  if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf))
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+      std::string{"Error re-queueing buffer: "}
+      + strerror(errno) + " (" + std::to_string(errno) + ")");
+    return Image{};
+  }
+
   auto img = Image{};
-  img.width = 640;
-  img.height = 480;
-  img.encoding = "mono8";
-  img.data.resize(640 * 480);
-  std::fill(img.data.begin(), img.data.end(), 128);
+  img.width = cur_data_format_.width;
+  img.height = cur_data_format_.height;
+  img.step = cur_data_format_.bytesPerLine;
+  img.encoding = sensor_msgs::image_encodings::YUV422;
+  img.data.resize(cur_data_format_.imageByteSize);
+
+  auto const& buffer = buffers_[buf.index];
+  std::copy(buffer.start, buffer.start + img.data.size(), img.data.begin());
   return img;
 }
 
@@ -139,4 +205,54 @@ void V4l2Camera::listControls()
     queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
   }
 
+}
+
+bool V4l2Camera::initMemoryMapping()
+{
+  struct v4l2_requestbuffers req;
+  memset(&req, 0, sizeof(req));
+
+  // Request 4 buffers
+  req.count = 4;
+  req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  req.memory = V4L2_MEMORY_MMAP;
+  ioctl(fd_, VIDIOC_REQBUFS, &req);
+
+  // Didn't get more than 1 buffer
+  if (req.count < 2)
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Insufficient buffer memory");
+    return false;
+  }
+
+  buffers_ = std::vector<Buffer>(req.count);
+
+  for (auto i = 0u; i < req.count; ++i)
+  {
+    auto buf = v4l2_buffer{};
+
+    buf.type        = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buf.memory      = V4L2_MEMORY_MMAP;
+    buf.index       = i;
+
+    ioctl(fd_, VIDIOC_QUERYBUF, &buf);
+
+    buffers_[i].index = buf.index;
+    buffers_[i].length = buf.length;
+    buffers_[i].start =
+      static_cast<unsigned char*>(
+        mmap(NULL /* start anywhere */,
+          buf.length,
+          PROT_READ | PROT_WRITE /* required */,
+          MAP_SHARED /* recommended */,
+          fd_, buf.m.offset));
+
+    if (MAP_FAILED == buffers_[i].start)
+    {
+      RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "Failed mapping device memory");
+      return false;
+    }
+  }
+
+  return true;
 }

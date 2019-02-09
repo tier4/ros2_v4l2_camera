@@ -25,6 +25,9 @@ Ros2V4L2Camera::Ros2V4L2Camera()
   camera_ = std::make_shared<V4l2Camera>("/dev/video0");
   if (!camera_->open())
     return;
+
+  if (!camera_->start())
+    return;
   
   image_pub_ = image_transport::create_publisher(this, "/image_raw");
 

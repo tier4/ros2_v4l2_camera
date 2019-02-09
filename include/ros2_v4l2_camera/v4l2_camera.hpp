@@ -30,8 +30,8 @@ public:
   V4l2Camera(std::string device);
 
   bool open();
-  void start();
-  void stop();
+  bool start();
+  bool stop();
 
   sensor_msgs::msg::Image capture();
 
@@ -146,6 +146,14 @@ private:
     std::map<int,std::string> menuItems;
   };
 
+  /// Image buffer
+  struct Buffer
+  {
+    unsigned index;
+    unsigned char* start;
+    size_t length;
+  };
+
   std::string device_;
   int fd_;
 
@@ -154,12 +162,17 @@ private:
   std::vector<Control> controls_;
   
   PixelFormat cur_data_format_;
+
+  std::vector<Buffer> buffers_;
   
   // Requests and stores all formats available for this camera
   void listImageFormats();
 
   // Requests and stores all controls available for this camera
   void listControls();
+
+  // Set up memory mapping to buffers
+  bool initMemoryMapping();
 };
 
 }
