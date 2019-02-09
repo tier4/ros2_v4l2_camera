@@ -3,5 +3,5 @@ image: osrf/ros2:nightly
 build:
   stage: build
   script:
-  - pip3 install colcon-common-extensions
+  - pip3 install -U pytest colcon-common-extensions
   - colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug
