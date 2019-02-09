@@ -1,0 +1,6 @@
+image: osrf/ros2:nightly
+
+build:
+  stage: build
+  script:
+  - colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug
