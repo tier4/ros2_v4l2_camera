@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="2">
+  <name>ros2_v4l2_camera</name>
+  <version>0.0.0</version>
+  <description>A ROS 2 camera driver using Video4Linux2</description>
+  <maintainer email="sgvandijk@gmail.com">Sander G. van Dijk</maintainer>
+  <license>Apache License 2.0</license>
+
+  <author>Sander G. van Dijk</author>
+
+  <buildtool_depend>ament_cmake_ros</buildtool_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
