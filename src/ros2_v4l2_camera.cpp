@@ -14,12 +14,23 @@
 
 #include "ros2_v4l2_camera/ros2_v4l2_camera.hpp"
 
+using namespace std::chrono_literals;
+
 namespace ros2_v4l2_camera
 {
 
 Ros2V4L2Camera::Ros2V4L2Camera()
 : rclcpp::Node{"ros2_v4l2_camera"}
 {
+  camera_ = std::make_shared<V4l2Camera>("/dev/video0");
+  image_pub_ = image_transport::create_publisher(this, "/image_raw");
+
+  capture_timer_ = create_wall_timer(
+    33ms, [=]() -> void {
+            RCLCPP_INFO(get_logger(), "Capture...");
+            auto img = camera_->capture();
+            image_pub_.publish(img);
+          });
 }
 
 Ros2V4L2Camera::~Ros2V4L2Camera()

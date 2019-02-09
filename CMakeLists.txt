@@ -19,14 +19,19 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(image_transport REQUIRED)
 
-add_library(ros2_v4l2_camera src/ros2_v4l2_camera.cpp)
+add_library(ros2_v4l2_camera
+  src/ros2_v4l2_camera.cpp
+  src/v4l2_camera.cpp)
+
 target_include_directories(ros2_v4l2_camera PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
 ament_target_dependencies(ros2_v4l2_camera
-  "rclcpp")
+  "rclcpp"
+  "image_transport")
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
