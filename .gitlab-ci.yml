@@ -4,5 +4,8 @@ build:
   stage: build
   script:
   - pip3 install -U pytest colcon-common-extensions
-  - git clone --branch 2.0.1 --depth 1 https://github.com/ros-perception/image_common.git
+  - mkdir -p /workspace/src
+  - mv ../ros2_v4l2_cammera /workspace/src/ros2_v4l2_cammera
+  - cd /workspace
+  - git clone --branch 2.0.1 --depth 1 https://github.com/ros-perception/image_common.git src/image_common
   - colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug
