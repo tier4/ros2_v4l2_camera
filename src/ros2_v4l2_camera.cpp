@@ -132,7 +132,7 @@ static void yuyv2rgb(unsigned char const *YUV, unsigned char *RGB, int NumPixels
 
 sensor_msgs::msg::Image Ros2V4L2Camera::convert(sensor_msgs::msg::Image const& img) const
 {
-  RCLCPP_INFO(get_logger(),
+  RCLCPP_DEBUG(get_logger(),
     std::string{"Coverting: "} + img.encoding + " -> " + output_encoding_);
   
   // TODO: temporary until cv_bridge and image_proc are available in ROS 2
