@@ -37,6 +37,10 @@ private:
   image_transport::Publisher image_pub_;
 
   rclcpp::TimerBase::SharedPtr capture_timer_;
+
+  std::string output_encoding_;
+
+  sensor_msgs::msg::Image convert(sensor_msgs::msg::Image const& img) const;
 };
 
 }  // namespace ros2_v4l2_camera

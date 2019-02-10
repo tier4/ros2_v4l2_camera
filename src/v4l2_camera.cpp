@@ -47,7 +47,7 @@ bool V4l2Camera::open()
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
 
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Current pixel format: " + cur_data_format_.pixelFormatString());
-  
+
   // List all available image formats and controls
   listImageFormats();
   listControls();
@@ -120,6 +120,7 @@ Image V4l2Camera::capture()
   buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   buf.memory = V4L2_MEMORY_MMAP;
 
+  // Dequeue buffer with new image
   if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf))
   {
     RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
@@ -128,6 +129,7 @@ Image V4l2Camera::capture()
     return Image{};
   }
 
+  // Requeue buffer to be reused for new captures
   if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf))
   {
     RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
@@ -136,11 +138,17 @@ Image V4l2Camera::capture()
     return Image{};
   }
 
+  // Create image object
   auto img = Image{};
   img.width = cur_data_format_.width;
   img.height = cur_data_format_.height;
   img.step = cur_data_format_.bytesPerLine;
-  img.encoding = sensor_msgs::image_encodings::YUV422;
+  if (cur_data_format_.pixelFormat == V4L2_PIX_FMT_YUYV)
+    img.encoding = sensor_msgs::image_encodings::YUV422;
+  else
+  {
+    RCLCPP_WARN(rclcpp::get_logger("v4l2_camera"), "Current pixel format is not supported yet");
+  }
   img.data.resize(cur_data_format_.imageByteSize);
 
   auto const& buffer = buffers_[buf.index];
