@@ -1,4 +1,4 @@
-image: osrf/ros2:nightly
+image: osrf/ros:crystal-desktop
 
 build:
   stage: build
