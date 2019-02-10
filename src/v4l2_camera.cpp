@@ -34,18 +34,19 @@ bool V4l2Camera::open()
   auto canRead = capabilities_.capabilities & V4L2_CAP_READWRITE;
   auto canStream = capabilities_.capabilities & V4L2_CAP_STREAMING;
   
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), std::string{"Driver: "} + (char*)capabilities_.driver);
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), std::string{"Device: "} + (char*)capabilities_.card);
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Capabilities:");
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), std::string{"  Read/write: "} + (canRead ? "YES" : "NO"));
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), std::string{"  Streaming:  "} + (canStream ? "YES" : "NO"));
 
 // Get current data (pixel) format
-  v4l2_format formatReq;
-  memset(&formatReq, 0, sizeof(formatReq));
+  auto formatReq = v4l2_format{};
   formatReq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   ioctl(fd_, VIDIOC_G_FMT, &formatReq);
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
 
-  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Current data format: " + cur_data_format_.pixelFormatString());
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Current pixel format: " + cur_data_format_.pixelFormatString());
   
   // List all available image formats and controls
   listImageFormats();
