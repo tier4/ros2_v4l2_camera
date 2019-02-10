@@ -36,7 +36,7 @@ Ros2V4L2Camera::Ros2V4L2Camera()
     return;
 
   // Prepare publisher
-  image_pub_ = image_transport::create_publisher(this, "/image_raw");
+  image_pub_ = image_transport::create_publisher(this, "/image_raw", rmw_qos_profile_sensor_data);
 
   
   // Start capture timer
