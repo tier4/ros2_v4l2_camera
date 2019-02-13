@@ -190,7 +190,7 @@ void V4l2Camera::listControls()
   controls_.clear();
 
   auto queryctrl = v4l2_queryctrl{};
-  queryctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
+  queryctrl.id = V4L2_CID_USER_CLASS | V4L2_CTRL_FLAG_NEXT_CTRL;
 
   while (ioctl(fd_, VIDIOC_QUERYCTRL, &queryctrl) == 0)
   {
