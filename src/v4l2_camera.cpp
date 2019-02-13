@@ -60,7 +60,9 @@ bool V4l2Camera::open()
   ioctl(fd_, VIDIOC_G_FMT, &formatReq);
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
 
-  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Current pixel format: " + cur_data_format_.pixelFormatString());
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
+    "Current pixel format: " + cur_data_format_.pixelFormatString()
+     + " @ " + std::to_string(cur_data_format_.width) + "x" + std::to_string(cur_data_format_.height));
 
   // List all available image formats and controls
   listImageFormats();
@@ -172,7 +174,8 @@ Image V4l2Camera::capture()
   return img;
 }
 
-int32_t V4l2Camera::getControlValue(uint32_t id) {
+int32_t V4l2Camera::getControlValue(uint32_t id)
+{
   auto ctrl = v4l2_control{};
   ctrl.id = id;
   if (-1 == ioctl(fd_, VIDIOC_G_CTRL, &ctrl))
@@ -183,6 +186,30 @@ int32_t V4l2Camera::getControlValue(uint32_t id) {
     return 0;
   }
   return ctrl.value;
+}
+
+bool V4l2Camera::requestDataFormat(const PixelFormat &format)
+{
+  auto formatReq = v4l2_format{};
+  formatReq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  formatReq.fmt.pix.pixelformat = format.pixelFormat;
+  formatReq.fmt.pix.width = format.width;
+  formatReq.fmt.pix.height = format.height;
+
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
+    "Requesting format: " + std::to_string(format.width) + "x" + std::to_string(format.height));
+    
+  // Perform request
+  if (-1 == ioctl(fd_, VIDIOC_S_FMT, &formatReq))
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+      std::string{"Failed requesting pixel format"}
+      + ": " + strerror(errno) + " (" + std::to_string(errno) + ")");
+    return false;
+  }
+
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Success");
+  return true;
 }
 
 void V4l2Camera::listImageFormats()

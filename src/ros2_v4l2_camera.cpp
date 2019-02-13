@@ -24,14 +24,19 @@ namespace ros2_v4l2_camera
 Ros2V4L2Camera::Ros2V4L2Camera()
 : rclcpp::Node{"ros2_v4l2_camera"}
 {
-  // Read parameters
-  get_parameter_or("output_encoding", output_encoding_, std::string{"rgb8"});
-  
   // Prepare camera
   camera_ = std::make_shared<V4l2Camera>("/dev/video0");
   if (!camera_->open())
     return;
 
+  auto dataFormat = camera_->getCurrentDataFormat();
+  
+  // Read parameters
+  get_parameter_or("output_encoding", output_encoding_, std::string{"rgb8"});
+  get_parameter("width", dataFormat.width);
+  get_parameter("height", dataFormat.height);
+  camera_->requestDataFormat(dataFormat);
+  
   if (!camera_->start())
     return;
 

@@ -35,8 +35,11 @@ public:
   bool start();
   bool stop();
 
-  auto getControls() const { return controls_; }
+  auto const& getControls() const { return controls_; }
   int32_t getControlValue(uint32_t id);
+
+  auto const& getCurrentDataFormat() const { return cur_data_format_; }
+  bool requestDataFormat(PixelFormat const& format);
   
   sensor_msgs::msg::Image capture();
 
