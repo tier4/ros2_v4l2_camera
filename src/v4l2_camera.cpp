@@ -54,7 +54,7 @@ bool V4l2Camera::open()
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), std::string{"  Read/write: "} + (canRead ? "YES" : "NO"));
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), std::string{"  Streaming:  "} + (canStream ? "YES" : "NO"));
 
-// Get current data (pixel) format
+  // Get current data (pixel) format
   auto formatReq = v4l2_format{};
   formatReq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   ioctl(fd_, VIDIOC_G_FMT, &formatReq);
@@ -73,7 +73,9 @@ bool V4l2Camera::open()
   
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available controls: ");
   for (auto const& control : controls_) {
-    RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "  "  + control.name);
+    RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
+      "  "  + control.name + " (" + std::to_string(static_cast<unsigned>(control.type)) + ") = " +
+      std::to_string(getControlValue(control.id)));
   }
   
   return true;
@@ -168,6 +170,19 @@ Image V4l2Camera::capture()
   auto const& buffer = buffers_[buf.index];
   std::copy(buffer.start, buffer.start + img.data.size(), img.data.begin());
   return img;
+}
+
+int32_t V4l2Camera::getControlValue(uint32_t id) {
+  auto ctrl = v4l2_control{};
+  ctrl.id = id;
+  if (-1 == ioctl(fd_, VIDIOC_G_CTRL, &ctrl))
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+      std::string{"Failed getting value for control "} + std::to_string(id)
+      + ": " + strerror(errno) + " (" + std::to_string(errno) + "); returning 0!");
+    return 0;
+  }
+  return ctrl.value;
 }
 
 void V4l2Camera::listImageFormats()

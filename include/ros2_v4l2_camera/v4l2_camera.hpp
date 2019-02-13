@@ -35,6 +35,9 @@ public:
   bool start();
   bool stop();
 
+  auto getControls() const { return controls_; }
+  int32_t getControlValue(uint32_t id);
+  
   sensor_msgs::msg::Image capture();
 
 private:
