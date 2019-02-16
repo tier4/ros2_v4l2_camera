@@ -85,9 +85,10 @@ bool V4l2Camera::open()
 
 bool V4l2Camera::start()
 {
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Starting camera...");
   if (!initMemoryMapping())
     return false;
-
+  
   // Queue the buffers
   for (auto const& buffer : buffers_)
   {
@@ -119,6 +120,7 @@ bool V4l2Camera::start()
 
 bool V4l2Camera::stop()
 {
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Stopping camera...");
   // Stop stream
   unsigned type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   if (-1 == ioctl(fd_, VIDIOC_STREAMOFF, &type))
@@ -127,6 +129,20 @@ bool V4l2Camera::stop()
       std::string{"Failed stream stop"});
     return false;
   }
+
+  // De-initialize buffers
+  for (auto const& buffer : buffers_)
+    munmap(buffer.start, buffer.length);
+
+  buffers_.clear();
+
+  auto req = v4l2_requestbuffers{};
+
+  // Free all buffers
+  req.count = 0;
+  req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  req.memory = V4L2_MEMORY_MMAP;
+  ioctl(fd_, VIDIOC_REQBUFS, &req);
 
   return true;
 }
@@ -198,7 +214,10 @@ bool V4l2Camera::requestDataFormat(const PixelFormat &format)
 
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
     "Requesting format: " + std::to_string(format.width) + "x" + std::to_string(format.height));
-    
+
+  if (!stop())
+    return false;
+  
   // Perform request
   if (-1 == ioctl(fd_, VIDIOC_S_FMT, &formatReq))
   {
@@ -207,8 +226,12 @@ bool V4l2Camera::requestDataFormat(const PixelFormat &format)
       + ": " + strerror(errno) + " (" + std::to_string(errno) + ")");
     return false;
   }
-
+ 
+  if (!start())
+    return false;
+    
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Success");
+  cur_data_format_ = PixelFormat{formatReq.fmt.pix};
   return true;
 }
 
@@ -274,8 +297,7 @@ void V4l2Camera::listControls()
 
 bool V4l2Camera::initMemoryMapping()
 {
-  struct v4l2_requestbuffers req;
-  memset(&req, 0, sizeof(req));
+  auto req = v4l2_requestbuffers{};
 
   // Request 4 buffers
   req.count = 4;

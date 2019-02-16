@@ -17,32 +17,37 @@
 #include <sensor_msgs/image_encodings.hpp>
 
 using namespace std::chrono_literals;
+using rcl_interfaces::msg::ParameterEvent;
 
 namespace ros2_v4l2_camera
 {
 
 Ros2V4L2Camera::Ros2V4L2Camera()
-: rclcpp::Node{"ros2_v4l2_camera"}
+: rclcpp::Node{"ros2_v4l2_camera"},
+  output_encoding_{"rgb8"}
 {
   // Prepare camera
   camera_ = std::make_shared<V4l2Camera>("/dev/video0");
   if (!camera_->open())
     return;
 
-  auto dataFormat = camera_->getCurrentDataFormat();
-  
-  // Read parameters
-  get_parameter_or("output_encoding", output_encoding_, std::string{"rgb8"});
-  get_parameter("width", dataFormat.width);
-  get_parameter("height", dataFormat.height);
-  camera_->requestDataFormat(dataFormat);
-  
+  // Start the camera
   if (!camera_->start())
     return;
 
+  // Read parameters and set up callback
+  readParameters();
+  register_param_change_callback(
+    [this](std::vector<rclcpp::Parameter> parameters) -> rcl_interfaces::msg::SetParametersResult {
+      auto result = rcl_interfaces::msg::SetParametersResult();
+      result.successful = true;
+      for (auto const& p : parameters)
+        result.successful &= handleParameter(p);
+      return result;
+    });
+
   // Prepare publisher
   image_pub_ = image_transport::create_publisher(this, "/image_raw", rmw_qos_profile_sensor_data);
-
   
   // Start capture timer
   capture_timer_ = create_wall_timer(
@@ -57,6 +62,44 @@ Ros2V4L2Camera::Ros2V4L2Camera()
 
 Ros2V4L2Camera::~Ros2V4L2Camera()
 {
+}
+
+void Ros2V4L2Camera::readParameters()
+{
+  auto parameters = get_parameters({
+      "output_encoding",
+      "shape"}
+    );
+  for (auto const& p : parameters)
+    handleParameter(p);
+}
+
+bool Ros2V4L2Camera::handleParameter(rclcpp::Parameter const& param)
+{
+  if (param.get_name() == "output_encoding")
+  {
+    output_encoding_ = param.as_string();
+    return true;
+  }
+  else if (param.get_name() == "shape")
+    return requestImageShape(param.as_integer_array());
+
+  return false;
+}
+
+bool Ros2V4L2Camera::requestImageShape(std::vector<int64_t> const& shape)
+{
+  if (shape.size() == 2) {
+    auto dataFormat = camera_->getCurrentDataFormat();
+    dataFormat.height = shape[0];
+    dataFormat.width = shape[1];
+    return camera_->requestDataFormat(dataFormat);
+  }
+  else
+  {
+    RCLCPP_WARN(get_logger(), "Invalid image shape; expected size: 2, actual: " + std::to_string(shape.size()));
+    return false;
+  }
 }
 
 static unsigned char CLIPVALUE(int val)
