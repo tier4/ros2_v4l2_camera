@@ -143,6 +143,9 @@ bool Ros2V4L2Camera::requestImageSize(std::vector<int64_t> const& size)
 {
   if (size.size() == 2) {
     auto dataFormat = camera_->getCurrentDataFormat();
+    // Do not apply if camera already runs at given size
+    if (dataFormat.width == size[0] && dataFormat.height == size[1])
+      return true;
     dataFormat.width = size[0];
     dataFormat.height = size[1];
     return camera_->requestDataFormat(dataFormat);
