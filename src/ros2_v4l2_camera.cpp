@@ -17,7 +17,6 @@
 #include <sensor_msgs/image_encodings.hpp>
 
 using namespace std::chrono_literals;
-using rcl_interfaces::msg::ParameterEvent;
 
 namespace ros2_v4l2_camera
 {
