@@ -44,7 +44,7 @@ private:
   void readParameters();
   bool handleParameter(rclcpp::Parameter const& param);
 
-  bool requestImageShape(std::vector<int64_t> const& shape);
+  bool requestImageSize(std::vector<int64_t> const& size);
   
   sensor_msgs::msg::Image convert(sensor_msgs::msg::Image const& img) const;
 };

@@ -204,6 +204,21 @@ int32_t V4l2Camera::getControlValue(uint32_t id)
   return ctrl.value;
 }
 
+bool V4l2Camera::setControlValue(uint32_t id, int32_t value)
+{
+  auto ctrl = v4l2_control{};
+  ctrl.id = id;
+  ctrl.value = value;
+  if (-1 == ioctl(fd_, VIDIOC_S_CTRL, &ctrl))
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+      std::string{"Failed setting value for control "} + std::to_string(id) + " to " + std::to_string(value)
+      + ": " + strerror(errno) + " (" + std::to_string(errno) + ")");
+    return false;
+  }
+  return true;
+}
+
 bool V4l2Camera::requestDataFormat(const PixelFormat &format)
 {
   auto formatReq = v4l2_format{};

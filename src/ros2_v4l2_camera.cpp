@@ -37,14 +37,6 @@ Ros2V4L2Camera::Ros2V4L2Camera()
 
   // Read parameters and set up callback
   readParameters();
-  register_param_change_callback(
-    [this](std::vector<rclcpp::Parameter> parameters) -> rcl_interfaces::msg::SetParametersResult {
-      auto result = rcl_interfaces::msg::SetParametersResult();
-      result.successful = true;
-      for (auto const& p : parameters)
-        result.successful &= handleParameter(p);
-      return result;
-    });
 
   // Prepare publisher
   image_pub_ = image_transport::create_publisher(this, "/image_raw", rmw_qos_profile_sensor_data);
@@ -66,12 +58,57 @@ Ros2V4L2Camera::~Ros2V4L2Camera()
 
 void Ros2V4L2Camera::readParameters()
 {
-  auto parameters = get_parameters({
-      "output_encoding",
-      "shape"}
-    );
-  for (auto const& p : parameters)
-    handleParameter(p);
+  // Node paramters
+  get_parameter_or_set("output_encoding", output_encoding_, std::string{"rgb8"});
+
+  // Format parameters
+  auto image_size = std::vector<int64_t>{};
+  get_parameter_or_set("image_size", image_size, {640, 480});
+  requestImageSize(image_size);
+
+  // Control parameters
+  auto toParamName =
+    [this](std::string name) {
+      std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+      name.erase(std::remove(name.begin(), name.end(), ','), name.end());
+      std::replace(name.begin(), name.end(), ' ', '_');
+      return name;
+    };
+  
+  for (auto const& c : camera_->getControls())
+  {
+    auto name = toParamName(c.name);
+    switch (c.type) {
+      case ControlType::INT:
+      {
+        auto value = int32_t{};
+        get_parameter_or_set(name, value, int32_t{camera_->getControlValue(c.id)});
+        camera_->setControlValue(c.id, value);
+        break;
+      } 
+      case ControlType::BOOL:
+      {
+        auto value = bool{};
+        get_parameter_or_set(name, value, camera_->getControlValue(c.id) != 0);
+        camera_->setControlValue(c.id, value);
+        break;
+      }
+      default:
+        RCLCPP_WARN(get_logger(),
+          std::string{"Control type not currently supported: "} + std::to_string(unsigned(c.type)) +
+          ", for controle: " + c.name);
+    }
+  }
+
+  // Register callback for parameter value setting
+  register_param_change_callback(
+    [this](std::vector<rclcpp::Parameter> parameters) -> rcl_interfaces::msg::SetParametersResult {
+      auto result = rcl_interfaces::msg::SetParametersResult();
+      result.successful = true;
+      for (auto const& p : parameters)
+        result.successful &= handleParameter(p);
+      return result;
+    });
 }
 
 bool Ros2V4L2Camera::handleParameter(rclcpp::Parameter const& param)
@@ -81,23 +118,23 @@ bool Ros2V4L2Camera::handleParameter(rclcpp::Parameter const& param)
     output_encoding_ = param.as_string();
     return true;
   }
-  else if (param.get_name() == "shape")
-    return requestImageShape(param.as_integer_array());
+  else if (param.get_name() == "size")
+    return requestImageSize(param.as_integer_array());
 
   return false;
 }
 
-bool Ros2V4L2Camera::requestImageShape(std::vector<int64_t> const& shape)
+bool Ros2V4L2Camera::requestImageSize(std::vector<int64_t> const& size)
 {
-  if (shape.size() == 2) {
+  if (size.size() == 2) {
     auto dataFormat = camera_->getCurrentDataFormat();
-    dataFormat.height = shape[0];
-    dataFormat.width = shape[1];
+    dataFormat.width = size[0];
+    dataFormat.height = size[1];
     return camera_->requestDataFormat(dataFormat);
   }
   else
   {
-    RCLCPP_WARN(get_logger(), "Invalid image shape; expected size: 2, actual: " + std::to_string(shape.size()));
+    RCLCPP_WARN(get_logger(), "Invalid image size; expected dimensions: 2, actual: " + std::to_string(size.size()));
     return false;
   }
 }
