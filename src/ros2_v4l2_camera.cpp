@@ -23,11 +23,12 @@ namespace ros2_v4l2_camera
 {
 
 Ros2V4L2Camera::Ros2V4L2Camera()
-: rclcpp::Node{"ros2_v4l2_camera"},
-  output_encoding_{"rgb8"}
+: rclcpp::Node{"ros2_v4l2_camera"}
 {
   // Prepare camera
-  camera_ = std::make_shared<V4l2Camera>("/dev/video0");
+  auto device = std::string{"/dev/video0"};
+  get_parameter("video_device", device);
+  camera_ = std::make_shared<V4l2Camera>(device);
   if (!camera_->open())
     return;
 
