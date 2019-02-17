@@ -85,7 +85,7 @@ bool V4l2Camera::open()
 
 bool V4l2Camera::start()
 {
-  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Starting camera...");
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Starting camera");
   if (!initMemoryMapping())
     return false;
   
@@ -120,7 +120,7 @@ bool V4l2Camera::start()
 
 bool V4l2Camera::stop()
 {
-  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Stopping camera...");
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Stopping camera");
   // Stop stream
   unsigned type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   if (-1 == ioctl(fd_, VIDIOC_STREAMOFF, &type))
