@@ -36,7 +36,7 @@ Ros2V4L2Camera::Ros2V4L2Camera()
     return;
 
   // Read parameters and set up callback
-  readParameters();
+  createParameters();
 
   // Prepare publisher
   image_pub_ = image_transport::create_publisher(this, "/image_raw", rmw_qos_profile_sensor_data);
@@ -56,7 +56,7 @@ Ros2V4L2Camera::~Ros2V4L2Camera()
 {
 }
 
-void Ros2V4L2Camera::readParameters()
+void Ros2V4L2Camera::createParameters()
 {
   // Node paramters
   get_parameter_or_set("output_encoding", output_encoding_, std::string{"rgb8"});
@@ -81,15 +81,15 @@ void Ros2V4L2Camera::readParameters()
     switch (c.type) {
       case ControlType::INT:
       {
-        auto value = int32_t{};
-        get_parameter_or_set(name, value, int32_t{camera_->getControlValue(c.id)});
+        auto value = int64_t{};
+        get_parameter_or_set<int64_t>(name, value, camera_->getControlValue(c.id));
         camera_->setControlValue(c.id, value);
         break;
       } 
       case ControlType::BOOL:
       {
         auto value = bool{};
-        get_parameter_or_set(name, value, camera_->getControlValue(c.id) != 0);
+        get_parameter_or_set<bool>(name, value, camera_->getControlValue(c.id) != 0);
         camera_->setControlValue(c.id, value);
         break;
       }
@@ -97,7 +97,9 @@ void Ros2V4L2Camera::readParameters()
         RCLCPP_WARN(get_logger(),
           std::string{"Control type not currently supported: "} + std::to_string(unsigned(c.type)) +
           ", for controle: " + c.name);
+        continue;
     }
+    control_name_to_id_[name] = c.id;
   }
 
   // Register callback for parameter value setting
@@ -113,7 +115,20 @@ void Ros2V4L2Camera::readParameters()
 
 bool Ros2V4L2Camera::handleParameter(rclcpp::Parameter const& param)
 {
-  if (param.get_name() == "output_encoding")
+  auto name = std::string{param.get_name()};
+  if (control_name_to_id_.find(name) != control_name_to_id_.end())
+    switch (param.get_type()) {
+      case rclcpp::ParameterType::PARAMETER_BOOL:
+        return camera_->setControlValue(control_name_to_id_[name], param.as_bool());
+      case rclcpp::ParameterType::PARAMETER_INTEGER:
+        return camera_->setControlValue(control_name_to_id_[name], param.as_int());
+      default:
+        RCLCPP_WARN(get_logger(),
+          std::string{"Control parameter type not currently supported: "}
+          + std::to_string(unsigned(param.get_type()))
+          + ", for parameter: " + param.get_name());
+    }
+  else if (param.get_name() == "output_encoding")
   {
     output_encoding_ = param.as_string();
     return true;
