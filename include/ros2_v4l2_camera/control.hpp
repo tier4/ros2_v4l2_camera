@@ -56,7 +56,7 @@ struct Control
   int defaultValue;
 
   /// Menu item names by index. Empty if this is not a menu control
-  std::map<int,std::string> menuItems;
+  std::map<int, std::string> menuItems;
 };
 
 }

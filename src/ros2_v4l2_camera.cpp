@@ -28,28 +28,32 @@ Ros2V4L2Camera::Ros2V4L2Camera()
   auto device = std::string{"/dev/video0"};
   get_parameter("video_device", device);
   camera_ = std::make_shared<V4l2Camera>(device);
-  if (!camera_->open())
+  if (!camera_->open()) {
     return;
+  }
 
   // Start the camera
-  if (!camera_->start())
+  if (!camera_->start()) {
     return;
+  }
 
   // Read parameters and set up callback
   createParameters();
 
   // Prepare publisher
   image_pub_ = image_transport::create_publisher(this, "/image_raw", rmw_qos_profile_sensor_data);
-  
+
   // Start capture timer
   capture_timer_ = create_wall_timer(
-    33ms, [=]() -> void {
-            RCLCPP_DEBUG(get_logger(), "Capture...");
-            auto img = camera_->capture();
-            if (img.encoding != output_encoding_)
-              img = convert(img);
-            image_pub_.publish(img);
-          });
+    33ms,
+    [this]() -> void {
+      RCLCPP_DEBUG(get_logger(), "Capture...");
+      auto img = camera_->capture();
+      if (img.encoding != output_encoding_) {
+        img = convert(img);
+      }
+      image_pub_.publish(img);
+    });
 }
 
 Ros2V4L2Camera::~Ros2V4L2Camera()
@@ -76,25 +80,24 @@ void Ros2V4L2Camera::createParameters()
       std::replace(name.begin(), name.end(), ' ', '_');
       return name;
     };
-  
-  for (auto const& c : camera_->getControls())
-  {
+
+  for (auto const & c : camera_->getControls()) {
     auto name = toParamName(c.name);
     switch (c.type) {
       case ControlType::INT:
-      {
-        auto value = int64_t{};
-        get_parameter_or_set<int64_t>(name, value, camera_->getControlValue(c.id));
-        camera_->setControlValue(c.id, value);
-        break;
-      } 
+        {
+          auto value = int64_t{};
+          get_parameter_or_set<int64_t>(name, value, camera_->getControlValue(c.id));
+          camera_->setControlValue(c.id, value);
+          break;
+        }
       case ControlType::BOOL:
-      {
-        auto value = bool{};
-        get_parameter_or_set<bool>(name, value, camera_->getControlValue(c.id) != 0);
-        camera_->setControlValue(c.id, value);
-        break;
-      }
+        {
+          auto value = bool{};
+          get_parameter_or_set<bool>(name, value, camera_->getControlValue(c.id) != 0);
+          camera_->setControlValue(c.id, value);
+          break;
+        }
       default:
         RCLCPP_WARN(get_logger(),
           std::string{"Control type not currently supported: "} + std::to_string(unsigned(c.type)) +
@@ -109,16 +112,17 @@ void Ros2V4L2Camera::createParameters()
     [this](std::vector<rclcpp::Parameter> parameters) -> rcl_interfaces::msg::SetParametersResult {
       auto result = rcl_interfaces::msg::SetParametersResult();
       result.successful = true;
-      for (auto const& p : parameters)
+      for (auto const & p : parameters) {
         result.successful &= handleParameter(p);
+      }
       return result;
     });
 }
 
-bool Ros2V4L2Camera::handleParameter(rclcpp::Parameter const& param)
+bool Ros2V4L2Camera::handleParameter(rclcpp::Parameter const & param)
 {
   auto name = std::string{param.get_name()};
-  if (control_name_to_id_.find(name) != control_name_to_id_.end())
+  if (control_name_to_id_.find(name) != control_name_to_id_.end()) {
     switch (param.get_type()) {
       case rclcpp::ParameterType::PARAMETER_BOOL:
         return camera_->setControlValue(control_name_to_id_[name], param.as_bool());
@@ -126,35 +130,35 @@ bool Ros2V4L2Camera::handleParameter(rclcpp::Parameter const& param)
         return camera_->setControlValue(control_name_to_id_[name], param.as_int());
       default:
         RCLCPP_WARN(get_logger(),
-          std::string{"Control parameter type not currently supported: "}
-          + std::to_string(unsigned(param.get_type()))
-          + ", for parameter: " + param.get_name());
+          std::string{"Control parameter type not currently supported: "} +
+          std::to_string(unsigned(param.get_type())) +
+          ", for parameter: " + param.get_name());
     }
-  else if (param.get_name() == "output_encoding")
-  {
+  } else if (param.get_name() == "output_encoding") {
     output_encoding_ = param.as_string();
     return true;
-  }
-  else if (param.get_name() == "size")
+  } else if (param.get_name() == "size") {
     return requestImageSize(param.as_integer_array());
+  }
 
   return false;
 }
 
-bool Ros2V4L2Camera::requestImageSize(std::vector<int64_t> const& size)
+bool Ros2V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
 {
   if (size.size() == 2) {
     auto dataFormat = camera_->getCurrentDataFormat();
     // Do not apply if camera already runs at given size
-    if (dataFormat.width == size[0] && dataFormat.height == size[1])
+    if (dataFormat.width == size[0] && dataFormat.height == size[1]) {
       return true;
+    }
     dataFormat.width = size[0];
     dataFormat.height = size[1];
     return camera_->requestDataFormat(dataFormat);
-  }
-  else
-  {
-    RCLCPP_WARN(get_logger(), "Invalid image size; expected dimensions: 2, actual: " + std::to_string(size.size()));
+  } else {
+    RCLCPP_WARN(
+      get_logger(),
+      "Invalid image size; expected dimensions: 2, actual: " + std::to_string(size.size()));
     return false;
   }
 }
@@ -187,8 +191,9 @@ static unsigned char CLIPVALUE(int val)
  * [ B ]   [  1.0   2.041   0.002 ] [ V ]
  *
  */
-static void YUV2RGB(const unsigned char y, const unsigned char u, const unsigned char v, unsigned char* r,
-                    unsigned char* g, unsigned char* b)
+static void YUV2RGB(
+  const unsigned char y, const unsigned char u, const unsigned char v, unsigned char * r,
+  unsigned char * g, unsigned char * b)
 {
   const int y2 = (int)y;
   const int u2 = (int)u - 128;
@@ -212,14 +217,13 @@ static void YUV2RGB(const unsigned char y, const unsigned char u, const unsigned
   *b = CLIPVALUE(b2);
 }
 
-static void yuyv2rgb(unsigned char const *YUV, unsigned char *RGB, int NumPixels)
+static void yuyv2rgb(unsigned char const * YUV, unsigned char * RGB, int NumPixels)
 {
   int i, j;
   unsigned char y0, y1, u, v;
   unsigned char r, g, b;
 
-  for (i = 0, j = 0; i < (NumPixels << 1); i += 4, j += 6)
-  {
+  for (i = 0, j = 0; i < (NumPixels << 1); i += 4, j += 6) {
     y0 = YUV[i + 0];
     u = YUV[i + 1];
     y1 = YUV[i + 2];
@@ -235,14 +239,14 @@ static void yuyv2rgb(unsigned char const *YUV, unsigned char *RGB, int NumPixels
   }
 }
 
-sensor_msgs::msg::Image Ros2V4L2Camera::convert(sensor_msgs::msg::Image const& img) const
+sensor_msgs::msg::Image Ros2V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
 {
   RCLCPP_DEBUG(get_logger(),
     std::string{"Coverting: "} + img.encoding + " -> " + output_encoding_);
-  
+
   // TODO: temporary until cv_bridge and image_proc are available in ROS 2
-  if (img.encoding == sensor_msgs::image_encodings::YUV422
-    && output_encoding_ == sensor_msgs::image_encodings::RGB8)
+  if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
+    output_encoding_ == sensor_msgs::image_encodings::RGB8)
   {
     auto outImg = sensor_msgs::msg::Image{};
     outImg.width = img.width;
@@ -250,12 +254,11 @@ sensor_msgs::msg::Image Ros2V4L2Camera::convert(sensor_msgs::msg::Image const& i
     outImg.step = img.width * 3;
     outImg.encoding = output_encoding_;
     outImg.data.resize(outImg.height * outImg.step);
-    for (auto i = 0u; i < outImg.height; ++i)
+    for (auto i = 0u; i < outImg.height; ++i) {
       yuyv2rgb(img.data.data() + i * img.step, outImg.data.data() + i * outImg.step, outImg.width);
+    }
     return outImg;
-  }
-  else
-  {
+  } else {
     RCLCPP_WARN_ONCE(get_logger(),
       std::string{"Conversion not supported yet: "} + img.encoding + " -> " + output_encoding_);
     return img;

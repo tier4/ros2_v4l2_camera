@@ -27,11 +27,11 @@ namespace ros2_v4l2_camera
  */
 struct ImageFormat
 {
-  ImageFormat(v4l2_fmtdesc const& fd)
+  ImageFormat(v4l2_fmtdesc const & fd)
   : index(fd.index),
     type(fd.type),
     flags(fd.flags),
-    description((const char*)fd.description),
+    description((const char *)fd.description),
     pixelFormat(fd.pixelformat)
   {}
 
