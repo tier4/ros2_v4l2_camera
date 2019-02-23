@@ -7,10 +7,11 @@ build:
   - mkdir -p /workspace/src
   - cp -r $(pwd) /workspace/src/ros2_v4l2_camera
   - cd /workspace
+  - mkdir $CI_PROJECT_DIR/build && ln -s $CI_PROJECT_DIR/build .
   - git clone --branch 2.0.1 --depth 1 https://github.com/ros-perception/image_common.git src/image_common
   - colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug
   - colcon test --event-handlers console_cohesion+ --return-code-on-test-failure --packages-select ros2_v4l2_camera
   artifacts:
     reports:
-      junit: /workspace/build/ros2_v4l2_camera/test_results/ros2_v4l2_camera/*.xunit.xml
+      junit: build/ros2_v4l2_camera/test_results/ros2_v4l2_camera/*.xunit.xml
 
