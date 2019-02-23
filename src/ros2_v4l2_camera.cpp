@@ -24,20 +24,22 @@ namespace ros2_v4l2_camera
 Ros2V4L2Camera::Ros2V4L2Camera()
 : rclcpp::Node{"ros2_v4l2_camera"}
 {
-  // Read parameters
-  get_parameter_or("output_encoding", output_encoding_, std::string{"rgb8"});
-  
   // Prepare camera
-  camera_ = std::make_shared<V4l2Camera>("/dev/video0");
+  auto device = std::string{"/dev/video0"};
+  get_parameter("video_device", device);
+  camera_ = std::make_shared<V4l2Camera>(device);
   if (!camera_->open())
     return;
 
+  // Start the camera
   if (!camera_->start())
     return;
 
+  // Read parameters and set up callback
+  createParameters();
+
   // Prepare publisher
   image_pub_ = image_transport::create_publisher(this, "/image_raw", rmw_qos_profile_sensor_data);
-
   
   // Start capture timer
   capture_timer_ = create_wall_timer(
@@ -52,6 +54,109 @@ Ros2V4L2Camera::Ros2V4L2Camera()
 
 Ros2V4L2Camera::~Ros2V4L2Camera()
 {
+}
+
+void Ros2V4L2Camera::createParameters()
+{
+  // Node paramters
+  get_parameter_or_set("output_encoding", output_encoding_, std::string{"rgb8"});
+
+  // Format parameters
+  auto image_size = std::vector<int64_t>{};
+  get_parameter_or_set("image_size", image_size, {640, 480});
+  requestImageSize(image_size);
+
+  // Control parameters
+  auto toParamName =
+    [this](std::string name) {
+      std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+      name.erase(std::remove(name.begin(), name.end(), ','), name.end());
+      name.erase(std::remove(name.begin(), name.end(), '('), name.end());
+      name.erase(std::remove(name.begin(), name.end(), ')'), name.end());
+      std::replace(name.begin(), name.end(), ' ', '_');
+      return name;
+    };
+  
+  for (auto const& c : camera_->getControls())
+  {
+    auto name = toParamName(c.name);
+    switch (c.type) {
+      case ControlType::INT:
+      {
+        auto value = int64_t{};
+        get_parameter_or_set<int64_t>(name, value, camera_->getControlValue(c.id));
+        camera_->setControlValue(c.id, value);
+        break;
+      } 
+      case ControlType::BOOL:
+      {
+        auto value = bool{};
+        get_parameter_or_set<bool>(name, value, camera_->getControlValue(c.id) != 0);
+        camera_->setControlValue(c.id, value);
+        break;
+      }
+      default:
+        RCLCPP_WARN(get_logger(),
+          std::string{"Control type not currently supported: "} + std::to_string(unsigned(c.type)) +
+          ", for controle: " + c.name);
+        continue;
+    }
+    control_name_to_id_[name] = c.id;
+  }
+
+  // Register callback for parameter value setting
+  register_param_change_callback(
+    [this](std::vector<rclcpp::Parameter> parameters) -> rcl_interfaces::msg::SetParametersResult {
+      auto result = rcl_interfaces::msg::SetParametersResult();
+      result.successful = true;
+      for (auto const& p : parameters)
+        result.successful &= handleParameter(p);
+      return result;
+    });
+}
+
+bool Ros2V4L2Camera::handleParameter(rclcpp::Parameter const& param)
+{
+  auto name = std::string{param.get_name()};
+  if (control_name_to_id_.find(name) != control_name_to_id_.end())
+    switch (param.get_type()) {
+      case rclcpp::ParameterType::PARAMETER_BOOL:
+        return camera_->setControlValue(control_name_to_id_[name], param.as_bool());
+      case rclcpp::ParameterType::PARAMETER_INTEGER:
+        return camera_->setControlValue(control_name_to_id_[name], param.as_int());
+      default:
+        RCLCPP_WARN(get_logger(),
+          std::string{"Control parameter type not currently supported: "}
+          + std::to_string(unsigned(param.get_type()))
+          + ", for parameter: " + param.get_name());
+    }
+  else if (param.get_name() == "output_encoding")
+  {
+    output_encoding_ = param.as_string();
+    return true;
+  }
+  else if (param.get_name() == "size")
+    return requestImageSize(param.as_integer_array());
+
+  return false;
+}
+
+bool Ros2V4L2Camera::requestImageSize(std::vector<int64_t> const& size)
+{
+  if (size.size() == 2) {
+    auto dataFormat = camera_->getCurrentDataFormat();
+    // Do not apply if camera already runs at given size
+    if (dataFormat.width == size[0] && dataFormat.height == size[1])
+      return true;
+    dataFormat.width = size[0];
+    dataFormat.height = size[1];
+    return camera_->requestDataFormat(dataFormat);
+  }
+  else
+  {
+    RCLCPP_WARN(get_logger(), "Invalid image size; expected dimensions: 2, actual: " + std::to_string(size.size()));
+    return false;
+  }
 }
 
 static unsigned char CLIPVALUE(int val)

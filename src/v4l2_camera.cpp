@@ -1,3 +1,17 @@
+// Copyright 2019 Bold Hearts
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "ros2_v4l2_camera/v4l2_camera.hpp"
 
 #include <rclcpp/rclcpp.hpp>
@@ -40,13 +54,15 @@ bool V4l2Camera::open()
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), std::string{"  Read/write: "} + (canRead ? "YES" : "NO"));
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), std::string{"  Streaming:  "} + (canStream ? "YES" : "NO"));
 
-// Get current data (pixel) format
+  // Get current data (pixel) format
   auto formatReq = v4l2_format{};
   formatReq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   ioctl(fd_, VIDIOC_G_FMT, &formatReq);
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
 
-  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Current pixel format: " + cur_data_format_.pixelFormatString());
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
+    "Current pixel format: " + cur_data_format_.pixelFormatString()
+     + " @ " + std::to_string(cur_data_format_.width) + "x" + std::to_string(cur_data_format_.height));
 
   // List all available image formats and controls
   listImageFormats();
@@ -59,7 +75,9 @@ bool V4l2Camera::open()
   
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available controls: ");
   for (auto const& control : controls_) {
-    RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "  "  + control.name);
+    RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
+      "  "  + control.name + " (" + std::to_string(static_cast<unsigned>(control.type)) + ") = " +
+      std::to_string(getControlValue(control.id)));
   }
   
   return true;
@@ -67,9 +85,10 @@ bool V4l2Camera::open()
 
 bool V4l2Camera::start()
 {
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Starting camera");
   if (!initMemoryMapping())
     return false;
-
+  
   // Queue the buffers
   for (auto const& buffer : buffers_)
   {
@@ -101,6 +120,7 @@ bool V4l2Camera::start()
 
 bool V4l2Camera::stop()
 {
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Stopping camera");
   // Stop stream
   unsigned type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   if (-1 == ioctl(fd_, VIDIOC_STREAMOFF, &type))
@@ -109,6 +129,20 @@ bool V4l2Camera::stop()
       std::string{"Failed stream stop"});
     return false;
   }
+
+  // De-initialize buffers
+  for (auto const& buffer : buffers_)
+    munmap(buffer.start, buffer.length);
+
+  buffers_.clear();
+
+  auto req = v4l2_requestbuffers{};
+
+  // Free all buffers
+  req.count = 0;
+  req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  req.memory = V4L2_MEMORY_MMAP;
+  ioctl(fd_, VIDIOC_REQBUFS, &req);
 
   return true;
 }
@@ -156,6 +190,69 @@ Image V4l2Camera::capture()
   return img;
 }
 
+int32_t V4l2Camera::getControlValue(uint32_t id)
+{
+  auto ctrl = v4l2_control{};
+  ctrl.id = id;
+  if (-1 == ioctl(fd_, VIDIOC_G_CTRL, &ctrl))
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+      std::string{"Failed getting value for control "} + std::to_string(id)
+      + ": " + strerror(errno) + " (" + std::to_string(errno) + "); returning 0!");
+    return 0;
+  }
+  return ctrl.value;
+}
+
+bool V4l2Camera::setControlValue(uint32_t id, int32_t value)
+{
+  auto ctrl = v4l2_control{};
+  ctrl.id = id;
+  ctrl.value = value;
+  if (-1 == ioctl(fd_, VIDIOC_S_CTRL, &ctrl))
+  {
+    auto control = std::find_if(
+      controls_.begin(), controls_.end(),
+      [id](Control const& c) { return c.id == id; });
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+      std::string{"Failed setting value for control "} + control->name + " to " + std::to_string(value)
+      + ": " + strerror(errno) + " (" + std::to_string(errno) + ")");
+    return false;
+  }
+  return true;
+}
+
+bool V4l2Camera::requestDataFormat(const PixelFormat &format)
+{
+  auto formatReq = v4l2_format{};
+  formatReq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  formatReq.fmt.pix.pixelformat = format.pixelFormat;
+  formatReq.fmt.pix.width = format.width;
+  formatReq.fmt.pix.height = format.height;
+
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
+    "Requesting format: " + std::to_string(format.width) + "x" + std::to_string(format.height));
+
+  if (!stop())
+    return false;
+  
+  // Perform request
+  if (-1 == ioctl(fd_, VIDIOC_S_FMT, &formatReq))
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
+      std::string{"Failed requesting pixel format"}
+      + ": " + strerror(errno) + " (" + std::to_string(errno) + ")");
+    return false;
+  }
+ 
+  if (!start())
+    return false;
+    
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Success");
+  cur_data_format_ = PixelFormat{formatReq.fmt.pix};
+  return true;
+}
+
 void V4l2Camera::listImageFormats()
 {
   image_formats_.clear();
@@ -176,7 +273,7 @@ void V4l2Camera::listControls()
   controls_.clear();
 
   auto queryctrl = v4l2_queryctrl{};
-  queryctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
+  queryctrl.id = V4L2_CID_USER_CLASS | V4L2_CTRL_FLAG_NEXT_CTRL;
 
   while (ioctl(fd_, VIDIOC_QUERYCTRL, &queryctrl) == 0)
   {
@@ -218,8 +315,7 @@ void V4l2Camera::listControls()
 
 bool V4l2Camera::initMemoryMapping()
 {
-  struct v4l2_requestbuffers req;
-  memset(&req, 0, sizeof(req));
+  auto req = v4l2_requestbuffers{};
 
   // Request 4 buffers
   req.count = 4;
