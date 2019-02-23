@@ -71,6 +71,8 @@ void Ros2V4L2Camera::createParameters()
     [this](std::string name) {
       std::transform(name.begin(), name.end(), name.begin(), ::tolower);
       name.erase(std::remove(name.begin(), name.end(), ','), name.end());
+      name.erase(std::remove(name.begin(), name.end(), '('), name.end());
+      name.erase(std::remove(name.begin(), name.end(), ')'), name.end());
       std::replace(name.begin(), name.end(), ' ', '_');
       return name;
     };
