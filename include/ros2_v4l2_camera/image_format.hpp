@@ -34,19 +34,19 @@ struct ImageFormat
     description((const char*)fd.description),
     pixelFormat(fd.pixelformat)
   {}
-    
+
   /// Number of the format in the enumeration, set by the application
   unsigned index;
-    
+
   /// Type of the data stream, set by the application, probably to V4L2_BUF_TYPE_VIDEO_CAPTURE
   unsigned type;
-    
+
   /// Image format description flags. Options: V4L2_FMT_FLAG_COMPRESSED and/or V4L2_FMT_FLAG_EMULATED
   unsigned flags;
-    
+
   /// Human readable description of the format
   std::string description;
-    
+
   /// The image format identifier as computed by the v4l2_fourcc() macro
   unsigned pixelFormat;
 };

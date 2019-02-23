@@ -38,10 +38,10 @@ public:
   auto const& getControls() const { return controls_; }
   int32_t getControlValue(uint32_t id);
   bool setControlValue(uint32_t id, int32_t value);
-  
+
   auto const& getCurrentDataFormat() const { return cur_data_format_; }
   bool requestDataFormat(PixelFormat const& format);
-  
+
   sensor_msgs::msg::Image capture();
 
 private:
@@ -60,11 +60,11 @@ private:
   v4l2_capability capabilities_;
   std::vector<ImageFormat> image_formats_;
   std::vector<Control> controls_;
-  
+
   PixelFormat cur_data_format_;
 
   std::vector<Buffer> buffers_;
-  
+
   // Requests and stores all formats available for this camera
   void listImageFormats();
 
@@ -78,4 +78,3 @@ private:
 }
 
 #endif
-
