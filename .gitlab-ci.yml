@@ -9,4 +9,5 @@ build:
   - cd /workspace
   - git clone --branch 2.0.1 --depth 1 https://github.com/ros-perception/image_common.git src/image_common
   - colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug
-  - colcon test
+  - colcon test --event-handlers console_cohesion+ --return-code-on-test-failure --packages-select ros2_v4l2_camera
+
