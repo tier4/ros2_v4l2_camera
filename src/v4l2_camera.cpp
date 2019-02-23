@@ -211,8 +211,11 @@ bool V4l2Camera::setControlValue(uint32_t id, int32_t value)
   ctrl.value = value;
   if (-1 == ioctl(fd_, VIDIOC_S_CTRL, &ctrl))
   {
+    auto control = std::find_if(
+      controls_.begin(), controls_.end(),
+      [id](Control const& c) { return c.id == id; });
     RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
-      std::string{"Failed setting value for control "} + std::to_string(id) + " to " + std::to_string(value)
+      std::string{"Failed setting value for control "} + control->name + " to " + std::to_string(value)
       + ": " + strerror(errno) + " (" + std::to_string(errno) + ")");
     return false;
   }
