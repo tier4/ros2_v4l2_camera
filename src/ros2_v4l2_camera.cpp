@@ -49,9 +49,11 @@ Ros2V4L2Camera::Ros2V4L2Camera()
     [this]() -> void {
       RCLCPP_DEBUG(get_logger(), "Capture...");
       auto img = camera_->capture();
+      auto stamp = now();
       if (img.encoding != output_encoding_) {
         img = convert(img);
       }
+      img.header.stamp = stamp;
       image_pub_.publish(img);
     });
 }
