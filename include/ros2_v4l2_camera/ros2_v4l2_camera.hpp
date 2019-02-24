@@ -42,13 +42,13 @@ private:
   std::string output_encoding_;
 
   std::map<std::string, int32_t> control_name_to_id_;
-  
-  void createParameters();
-  bool handleParameter(rclcpp::Parameter const& param);
 
-  bool requestImageSize(std::vector<int64_t> const& size);
-  
-  sensor_msgs::msg::Image convert(sensor_msgs::msg::Image const& img) const;
+  void createParameters();
+  bool handleParameter(rclcpp::Parameter const & param);
+
+  bool requestImageSize(std::vector<int64_t> const & size);
+
+  sensor_msgs::msg::Image convert(sensor_msgs::msg::Image const & img) const;
 };
 
 }  // namespace ros2_v4l2_camera

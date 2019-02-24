@@ -22,43 +22,44 @@ namespace ros2_v4l2_camera
 {
 
 /** Format and layout of an image in memory
- * 
+ *
  * Describes how data is structured
  */
 struct PixelFormat
 {
   PixelFormat()
   {}
-    
-  PixelFormat(v4l2_pix_format const& pf)
-  : width (pf.width),
-    height(pf.height),
-    pixelFormat(pf.pixelformat),
-    bytesPerLine(pf.bytesperline),
-    imageByteSize(pf.sizeimage)
+
+  PixelFormat(v4l2_pix_format const & pf)
+  : width{pf.width},
+    height{pf.height},
+    pixelFormat{pf.pixelformat},
+    bytesPerLine{pf.bytesperline},
+    imageByteSize{pf.sizeimage}
   {}
-    
+
   /// Image width in pixels
   unsigned width;
-    
+
   /// Image height in pixels
   unsigned height;
-    
+
   /// The pixel format or type of compression, set by the application
   unsigned pixelFormat;
-    
+
   /// Distance in bytes between the leftmost pixels in two adjacent lines
   unsigned bytesPerLine;
-    
+
   /// Size in bytes of the buffer to hold a complete image, set by the driver
   unsigned imageByteSize;
-    
+
   /// Human readable description of the format
   std::string pixelFormatString() const
   {
     char chars[5];
-    for (unsigned i = 0; i < 4; ++i)
+    for (unsigned i = 0; i < 4; ++i) {
       chars[i] = ((pixelFormat >> (i * 8)) & 0xFF);
+    }
     chars[4] = 0;
     return std::string(chars);
   }

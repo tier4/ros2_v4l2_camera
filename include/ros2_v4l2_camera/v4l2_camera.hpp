@@ -27,7 +27,8 @@ namespace ros2_v4l2_camera
 
 /** Camera device using Video4Linux2
  */
-class V4l2Camera {
+class V4l2Camera
+{
 public:
   V4l2Camera(std::string device);
 
@@ -35,22 +36,21 @@ public:
   bool start();
   bool stop();
 
-  auto const& getControls() const { return controls_; }
+  auto const & getControls() const {return controls_;}
   int32_t getControlValue(uint32_t id);
   bool setControlValue(uint32_t id, int32_t value);
-  
-  auto const& getCurrentDataFormat() const { return cur_data_format_; }
-  bool requestDataFormat(PixelFormat const& format);
-  
+
+  auto const & getCurrentDataFormat() const {return cur_data_format_;}
+  bool requestDataFormat(PixelFormat const & format);
+
   sensor_msgs::msg::Image capture();
 
 private:
-
   /// Image buffer
   struct Buffer
   {
     unsigned index;
-    unsigned char* start;
+    unsigned char * start;
     size_t length;
   };
 
@@ -60,11 +60,11 @@ private:
   v4l2_capability capabilities_;
   std::vector<ImageFormat> image_formats_;
   std::vector<Control> controls_;
-  
+
   PixelFormat cur_data_format_;
 
   std::vector<Buffer> buffers_;
-  
+
   // Requests and stores all formats available for this camera
   void listImageFormats();
 
@@ -78,4 +78,3 @@ private:
 }
 
 #endif
-

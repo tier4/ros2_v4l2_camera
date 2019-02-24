@@ -39,24 +39,24 @@ struct Control
 {
   /// Identifies the control, set by the application
   unsigned id;
-    
+
   /// Human readable name
   std::string name;
-    
+
   /// Type of control
   ControlType type;
-        
+
   /// Minimum value, inclusive
   int minimum;
-    
+
   /// Maximum value, inclusive
   int maximum;
-    
+
   /// The default value of of an integer, boolean, bitmask, menu or integer menu control
   int defaultValue;
-    
+
   /// Menu item names by index. Empty if this is not a menu control
-  std::map<int,std::string> menuItems;
+  std::map<int, std::string> menuItems;
 };
 
 }
