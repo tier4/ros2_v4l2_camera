@@ -56,7 +56,7 @@ repository is needed:
     enumerates all controls, and creates a parameter for each, with
     the corresponding value type. The parameter name is derived from
     the control name reported by the camera driver, made lower case,
-    commas removed, and spaces replaced by underscorse. So
+    commas removed, and spaces replaced by underscores. So
     `Brightness` becomes `brightness`, and `White Balance, Automatic`
     becomes `white_balance_automatic`.
 
@@ -97,7 +97,7 @@ If the compression plugins are compiled and installed in the current
 workspace, they will be automatically used by the driver and an
 additional `/image_raw/compressed` topic will be available.
 
-Neither Rviz2 or `showimage` use `image_transport` (yet). Therefor, to
+Neither Rviz2 or `showimage` use `image_transport` (yet). Therefore, to
 be able to view the compressed topic, it needs to be republished
 uncompressed. `image_transport` comes with the `republish` node to do
 this:
