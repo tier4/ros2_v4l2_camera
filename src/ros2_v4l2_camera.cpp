@@ -41,7 +41,7 @@ Ros2V4L2Camera::Ros2V4L2Camera()
   createParameters();
 
   // Prepare publisher
-  image_pub_ = image_transport::create_publisher(this, "/image_raw", rmw_qos_profile_sensor_data);
+  image_pub_ = image_transport::create_publisher(this, "/image_raw");
 
   // Start capture timer
   capture_timer_ = create_wall_timer(
@@ -49,9 +49,11 @@ Ros2V4L2Camera::Ros2V4L2Camera()
     [this]() -> void {
       RCLCPP_DEBUG(get_logger(), "Capture...");
       auto img = camera_->capture();
+      auto stamp = now();
       if (img.encoding != output_encoding_) {
         img = convert(img);
       }
+      img.header.stamp = stamp;
       image_pub_.publish(img);
     });
 }
