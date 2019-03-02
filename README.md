@@ -4,10 +4,11 @@ A ROS 2 camera driver using Video4Linux2 (V4L2).
 
 ## Dependencies
 
-* `image_transport` - to allow for compressed image transport.
+* `image_transport` - makes it possible to set up compressed transport
+  of the images, as described below.
 
     The ROS 2 port of `image_transport` in the `image_common`
-    repository is needed:
+    repository is needed inside of your workspace:
 
         git clone --branch ros2 https://github.com/ros-perception/image_common.git src/image_common
 
@@ -21,13 +22,6 @@ A ROS 2 camera driver using Video4Linux2 (V4L2).
 
 The `ros2_v4l2_camera_node` interfaces with standard V4L2 devices and
 publishes images as `sensor_msgs/Image` messages.
-
-Uses the `image_transport` to allow compressed image transport. For
-this, the ROS 2 port of `image_transport` in the `image_common`
-repository is needed:
-
-    cd src && git clone --branch ros2  https://github.com/ros-perception/image_common.git
-
 
 #### Published Topics
 
@@ -75,7 +69,7 @@ get these:
 
 ### Building: Ubuntu
 
-The following packages are required:
+The following packages are required to be able to build the plugins:
 
     sudo apt install libtheora-dev libogg-dev libboost-python-dev
 
