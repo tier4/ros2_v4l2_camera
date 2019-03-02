@@ -77,7 +77,7 @@ get these:
 
 The following packages are required:
 
-    sudo apt install libtheora-dev libogg-dev
+    sudo apt install libtheora-dev libogg-dev libboost-python-dev
 
 ### Building: Arch
 
