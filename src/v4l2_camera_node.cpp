@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ros2_v4l2_camera/ros2_v4l2_camera.hpp"
+#include "v4l2_camera/v4l2_camera.hpp"
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
 
-  auto node = std::make_shared<ros2_v4l2_camera::Ros2V4L2Camera>();
+  auto node = std::make_shared<v4l2_camera::V4L2Camera>();
 
   rclcpp::spin(node);
   rclcpp::shutdown();

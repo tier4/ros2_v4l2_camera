@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ROS2_V4L2_CAMERA__PIXEL_FORMAT_HPP_
-#define ROS2_V4L2_CAMERA__PIXEL_FORMAT_HPP_
+#ifndef V4L2_CAMERA__PIXEL_FORMAT_HPP_
+#define V4L2_CAMERA__PIXEL_FORMAT_HPP_
 
 #include <linux/videodev2.h>
 #include <string>
 
-namespace ros2_v4l2_camera
+namespace v4l2_camera
 {
 
 /** Format and layout of an image in memory
