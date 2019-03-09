@@ -20,6 +20,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(image_transport REQUIRED)
+find_package(camera_info_manager REQUIRED)
 
 add_library(v4l2_camera
   src/v4l2_camera.cpp
@@ -31,7 +32,8 @@ target_include_directories(v4l2_camera PUBLIC
 
 ament_target_dependencies(v4l2_camera
   "rclcpp"
-  "image_transport")
+  "image_transport"
+  "camera_info_manager")
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
