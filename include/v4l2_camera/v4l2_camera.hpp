@@ -21,6 +21,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rcl_interfaces/msg/parameter.hpp>
+#include <camera_info_manager/camera_info_manager.h>
 #include <image_transport/image_transport.h>
 
 namespace v4l2_camera
@@ -35,8 +36,10 @@ public:
 
 private:
   std::shared_ptr<V4l2CameraDevice> camera_;
-  image_transport::Publisher image_pub_;
+  image_transport::CameraPublisher camera_pub_;
 
+  std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
+  
   rclcpp::TimerBase::SharedPtr capture_timer_;
 
   std::string output_encoding_;
