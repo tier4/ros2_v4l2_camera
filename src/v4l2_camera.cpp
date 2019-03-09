@@ -29,11 +29,11 @@ V4L2Camera::V4L2Camera()
   get_parameter("video_device", device);
   camera_ = std::make_shared<V4l2CameraDevice>(device);
 
-  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this);
-  
   if (!camera_->open()) {
     return;
   }
+
+  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
 
   // Start the camera
   if (!camera_->start()) {
@@ -45,7 +45,7 @@ V4L2Camera::V4L2Camera()
 
   // Prepare publisher
   camera_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
-  
+
   // Start capture timer
   capture_timer_ = create_wall_timer(
     33ms,
@@ -60,7 +60,7 @@ V4L2Camera::V4L2Camera()
 
       auto ci = cinfo_->getCameraInfo();
       ci.header.stamp = stamp;
-      
+
       camera_pub_.publish(img, ci);
     });
 }
