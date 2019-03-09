@@ -1,4 +1,4 @@
-# ros2_v4l2_camera
+# v4l2_camera
 
 A ROS 2 camera driver using Video4Linux2 (V4L2).
 
@@ -18,9 +18,9 @@ A ROS 2 camera driver using Video4Linux2 (V4L2).
   
 ## Nodes
 
-### ros2_v4l2_camera_node
+### v4l2_camera_node
 
-The `ros2_v4l2_camera_node` interfaces with standard V4L2 devices and
+The `v4l2_camera_node` interfaces with standard V4L2 devices and
 publishes images as `sensor_msgs/Image` messages.
 
 #### Published Topics
