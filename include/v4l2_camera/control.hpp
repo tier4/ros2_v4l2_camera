@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ROS2_V4L2_CAMERA__CONTROL_HPP_
-#define ROS2_V4L2_CAMERA__CONTROL_HPP_
+#ifndef V4L2_CAMERA__CONTROL_HPP_
+#define V4L2_CAMERA__CONTROL_HPP_
 
 #include <linux/videodev2.h>
 #include <string>
 #include <map>
 
-namespace ros2_v4l2_camera
+namespace v4l2_camera
 {
 
 /// Type of camera control

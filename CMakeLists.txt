@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(ros2_v4l2_camera)
+project(v4l2_camera)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -21,41 +21,41 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(image_transport REQUIRED)
 
-add_library(ros2_v4l2_camera
-  src/ros2_v4l2_camera.cpp
-  src/v4l2_camera.cpp)
+add_library(v4l2_camera
+  src/v4l2_camera.cpp
+  src/v4l2_camera_device.cpp)
 
-target_include_directories(ros2_v4l2_camera PUBLIC
+target_include_directories(v4l2_camera PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-ament_target_dependencies(ros2_v4l2_camera
+ament_target_dependencies(v4l2_camera
   "rclcpp"
   "image_transport")
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
-target_compile_definitions(ros2_v4l2_camera PRIVATE "ROS2_V4L2_CAMERA_BUILDING_LIBRARY")
+target_compile_definitions(v4l2_camera PRIVATE "V4L2_CAMERA_BUILDING_LIBRARY")
 
 install(
   DIRECTORY include/
   DESTINATION include
 )
 install(
-  TARGETS ros2_v4l2_camera
+  TARGETS v4l2_camera
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 
-add_executable(ros2_v4l2_camera_node src/ros2_v4l2_camera_node.cpp)
-target_include_directories(ros2_v4l2_camera_node PUBLIC
+add_executable(v4l2_camera_node src/v4l2_camera_node.cpp)
+target_include_directories(v4l2_camera_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_link_libraries(ros2_v4l2_camera_node ros2_v4l2_camera)
+target_link_libraries(v4l2_camera_node v4l2_camera)
 
-install(TARGETS ros2_v4l2_camera_node
+install(TARGETS v4l2_camera_node
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME})
 
@@ -73,7 +73,7 @@ ament_export_interfaces(
   export_${PROJECT_NAME}
 )
 ament_export_libraries(
-  ros2_v4l2_camera
+  v4l2_camera
 )
 
 ament_package()

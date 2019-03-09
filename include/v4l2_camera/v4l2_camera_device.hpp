@@ -12,25 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ROS2_V4L2_CAMERA__V4L2_CAMERA_HPP_
-#define ROS2_V4L2_CAMERA__V4L2_CAMERA_HPP_
+#ifndef V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
+#define V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 
-#include "ros2_v4l2_camera/control.hpp"
-#include "ros2_v4l2_camera/image_format.hpp"
-#include "ros2_v4l2_camera/pixel_format.hpp"
+#include "v4l2_camera/control.hpp"
+#include "v4l2_camera/image_format.hpp"
+#include "v4l2_camera/pixel_format.hpp"
 
 #include <sensor_msgs/msg/image.hpp>
 #include <map>
 
-namespace ros2_v4l2_camera
+namespace v4l2_camera
 {
 
 /** Camera device using Video4Linux2
  */
-class V4l2Camera
+class V4l2CameraDevice
 {
 public:
-  V4l2Camera(std::string device);
+  V4l2CameraDevice(std::string device);
 
   bool open();
   bool start();

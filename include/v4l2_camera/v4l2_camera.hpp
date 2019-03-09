@@ -12,29 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ROS2_V4L2_CAMERA__ROS2_V4L2_CAMERA_HPP_
-#define ROS2_V4L2_CAMERA__ROS2_V4L2_CAMERA_HPP_
+#ifndef V4L2_CAMERA__V4L2_CAMERA_HPP_
+#define V4L2_CAMERA__V4L2_CAMERA_HPP_
 
-#include "ros2_v4l2_camera/visibility_control.h"
+#include "v4l2_camera/visibility_control.h"
 
-#include "ros2_v4l2_camera/v4l2_camera.hpp"
+#include "v4l2_camera/v4l2_camera_device.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <rcl_interfaces/msg/parameter.hpp>
 #include <image_transport/image_transport.h>
 
-namespace ros2_v4l2_camera
+namespace v4l2_camera
 {
 
-class Ros2V4L2Camera : public rclcpp::Node
+class V4L2Camera : public rclcpp::Node
 {
 public:
-  Ros2V4L2Camera();
+  V4L2Camera();
 
-  virtual ~Ros2V4L2Camera();
+  virtual ~V4L2Camera();
 
 private:
-  std::shared_ptr<V4l2Camera> camera_;
+  std::shared_ptr<V4l2CameraDevice> camera_;
   image_transport::Publisher image_pub_;
 
   rclcpp::TimerBase::SharedPtr capture_timer_;
@@ -51,6 +51,6 @@ private:
   sensor_msgs::msg::Image convert(sensor_msgs::msg::Image const & img) const;
 };
 
-}  // namespace ros2_v4l2_camera
+}  // namespace v4l2_camera
 
-#endif  // ROS2_V4L2_CAMERA__ROS2_V4L2_CAMERA_HPP_
+#endif  // V4L2_CAMERA__ROS2_V4L2_CAMERA_HPP_
