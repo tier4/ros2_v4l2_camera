@@ -161,8 +161,7 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
   } else if (param.get_name() == "camera_info_url") {
     auto camera_info_url = param.as_string();
     if (cinfo_->validateURL(camera_info_url)) {
-      cinfo_->loadCameraInfo(camera_info_url);
-      return true;
+      return cinfo_->loadCameraInfo(camera_info_url);
     } else {
       RCLCPP_WARN(get_logger(), std::string{"Invalid camera info URL: "} + camera_info_url);
       return false;
