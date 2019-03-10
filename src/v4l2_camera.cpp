@@ -59,6 +59,12 @@ V4L2Camera::V4L2Camera()
       img.header.stamp = stamp;
 
       auto ci = cinfo_->getCameraInfo();
+      if (!checkCameraInfo(img, ci)) {
+        ci = sensor_msgs::msg::CameraInfo{};
+        ci.height = img.height;
+        ci.width = img.width;
+      }
+
       ci.header.stamp = stamp;
 
       camera_pub_.publish(img, ci);
@@ -290,6 +296,13 @@ sensor_msgs::msg::Image V4L2Camera::convert(sensor_msgs::msg::Image const & img)
       std::string{"Conversion not supported yet: "} + img.encoding + " -> " + output_encoding_);
     return img;
   }
+}
+
+bool V4L2Camera::checkCameraInfo(
+  sensor_msgs::msg::Image const & img,
+  sensor_msgs::msg::CameraInfo const & ci)
+{
+  return ci.width == img.width && ci.height == img.height;
 }
 
 }  // namespace ros2_v4l2_camera
