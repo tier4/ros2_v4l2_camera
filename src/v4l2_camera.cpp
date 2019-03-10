@@ -77,9 +77,9 @@ void V4L2Camera::createParameters()
   // Camera info parameters
   auto camera_info_url = std::string{};
   if (get_parameter("camera_info_url", camera_info_url)) {
-    if (cinfo_->validateURL(camera_info_url))
+    if (cinfo_->validateURL(camera_info_url)) {
       cinfo_->loadCameraInfo(camera_info_url);
-    else {
+    } else {
       RCLCPP_WARN(get_logger(), std::string{"Invalid camera info URL: "} + camera_info_url);
     }
   }
@@ -158,8 +158,7 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
     return true;
   } else if (param.get_name() == "size") {
     return requestImageSize(param.as_integer_array());
-  }
-  else if (param.get_name() == "camera_info_url") {
+  } else if (param.get_name() == "camera_info_url") {
     auto camera_info_url = param.as_string();
     if (cinfo_->validateURL(camera_info_url)) {
       cinfo_->loadCameraInfo(camera_info_url);

@@ -39,7 +39,7 @@ private:
   image_transport::CameraPublisher camera_pub_;
 
   std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
-  
+
   rclcpp::TimerBase::SharedPtr capture_timer_;
 
   std::string output_encoding_;
