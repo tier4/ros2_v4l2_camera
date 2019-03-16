@@ -21,6 +21,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rcl_interfaces/msg/parameter.hpp>
+#include <camera_info_manager/camera_info_manager.h>
 #include <image_transport/image_transport.h>
 
 namespace v4l2_camera
@@ -35,7 +36,9 @@ public:
 
 private:
   std::shared_ptr<V4l2CameraDevice> camera_;
-  image_transport::Publisher image_pub_;
+  image_transport::CameraPublisher camera_pub_;
+
+  std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 
   rclcpp::TimerBase::SharedPtr capture_timer_;
 
@@ -49,6 +52,10 @@ private:
   bool requestImageSize(std::vector<int64_t> const & size);
 
   sensor_msgs::msg::Image convert(sensor_msgs::msg::Image const & img) const;
+
+  bool checkCameraInfo(
+    sensor_msgs::msg::Image const & img,
+    sensor_msgs::msg::CameraInfo const & ci);
 };
 
 }  // namespace v4l2_camera

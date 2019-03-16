@@ -50,7 +50,12 @@ bool V4l2CameraDevice::open()
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
     std::string{"Driver: "} + (char *)capabilities_.driver);
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
+    std::string{"Version: "} + std::to_string(capabilities_.version));
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
     std::string{"Device: "} + (char *)capabilities_.card);
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
+    std::string{"Location: "} + (char *)capabilities_.bus_info);
+
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
     "Capabilities:");
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
@@ -147,6 +152,14 @@ bool V4l2CameraDevice::stop()
   ioctl(fd_, VIDIOC_REQBUFS, &req);
 
   return true;
+}
+
+std::string V4l2CameraDevice::getCameraName()
+{
+  auto name = std::string{(char *)capabilities_.card};
+  std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+  std::replace(name.begin(), name.end(), ' ', '_');
+  return name;
 }
 
 Image V4l2CameraDevice::capture()

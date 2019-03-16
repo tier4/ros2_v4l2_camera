@@ -28,9 +28,12 @@ V4L2Camera::V4L2Camera()
   auto device = std::string{"/dev/video0"};
   get_parameter("video_device", device);
   camera_ = std::make_shared<V4l2CameraDevice>(device);
+
   if (!camera_->open()) {
     return;
   }
+
+  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
 
   // Start the camera
   if (!camera_->start()) {
@@ -41,7 +44,7 @@ V4L2Camera::V4L2Camera()
   createParameters();
 
   // Prepare publisher
-  image_pub_ = image_transport::create_publisher(this, "/image_raw");
+  camera_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
 
   // Start capture timer
   capture_timer_ = create_wall_timer(
@@ -54,7 +57,17 @@ V4L2Camera::V4L2Camera()
         img = convert(img);
       }
       img.header.stamp = stamp;
-      image_pub_.publish(img);
+
+      auto ci = cinfo_->getCameraInfo();
+      if (!checkCameraInfo(img, ci)) {
+        ci = sensor_msgs::msg::CameraInfo{};
+        ci.height = img.height;
+        ci.width = img.width;
+      }
+
+      ci.header.stamp = stamp;
+
+      camera_pub_.publish(img, ci);
     });
 }
 
@@ -67,6 +80,16 @@ void V4L2Camera::createParameters()
   // Node paramters
   get_parameter_or_set("output_encoding", output_encoding_, std::string{"rgb8"});
 
+  // Camera info parameters
+  auto camera_info_url = std::string{};
+  if (get_parameter("camera_info_url", camera_info_url)) {
+    if (cinfo_->validateURL(camera_info_url)) {
+      cinfo_->loadCameraInfo(camera_info_url);
+    } else {
+      RCLCPP_WARN(get_logger(), std::string{"Invalid camera info URL: "} + camera_info_url);
+    }
+  }
+
   // Format parameters
   auto image_size = std::vector<int64_t>{};
   get_parameter_or_set("image_size", image_size, {640, 480});
@@ -74,7 +97,7 @@ void V4L2Camera::createParameters()
 
   // Control parameters
   auto toParamName =
-    [this](std::string name) {
+    [](std::string name) {
       std::transform(name.begin(), name.end(), name.begin(), ::tolower);
       name.erase(std::remove(name.begin(), name.end(), ','), name.end());
       name.erase(std::remove(name.begin(), name.end(), '('), name.end());
@@ -141,6 +164,14 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
     return true;
   } else if (param.get_name() == "size") {
     return requestImageSize(param.as_integer_array());
+  } else if (param.get_name() == "camera_info_url") {
+    auto camera_info_url = param.as_string();
+    if (cinfo_->validateURL(camera_info_url)) {
+      return cinfo_->loadCameraInfo(camera_info_url);
+    } else {
+      RCLCPP_WARN(get_logger(), std::string{"Invalid camera info URL: "} + camera_info_url);
+      return false;
+    }
   }
 
   return false;
@@ -265,6 +296,13 @@ sensor_msgs::msg::Image V4L2Camera::convert(sensor_msgs::msg::Image const & img)
       std::string{"Conversion not supported yet: "} + img.encoding + " -> " + output_encoding_);
     return img;
   }
+}
+
+bool V4L2Camera::checkCameraInfo(
+  sensor_msgs::msg::Image const & img,
+  sensor_msgs::msg::CameraInfo const & ci)
+{
+  return ci.width == img.width && ci.height == img.height;
 }
 
 }  // namespace ros2_v4l2_camera

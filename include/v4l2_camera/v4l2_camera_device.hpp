@@ -43,6 +43,8 @@ public:
   auto const & getCurrentDataFormat() const {return cur_data_format_;}
   bool requestDataFormat(PixelFormat const & format);
 
+  std::string getCameraName();
+
   sensor_msgs::msg::Image capture();
 
 private:
