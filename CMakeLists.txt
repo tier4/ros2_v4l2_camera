@@ -78,4 +78,8 @@ ament_export_libraries(
   v4l2_camera
 )
 
+ament_export_dependencies(
+  "camera_info_manager"
+)
+
 ament_package()
