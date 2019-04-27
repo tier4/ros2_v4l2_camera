@@ -22,7 +22,8 @@ namespace v4l2_camera
 {
 
 V4L2Camera::V4L2Camera()
-: rclcpp::Node{"v4l2_camera"}
+: rclcpp::Node{"v4l2_camera"},
+  canceled_{false}
 {
   // Prepare camera
   auto device = std::string{"/dev/video0"};
@@ -46,33 +47,39 @@ V4L2Camera::V4L2Camera()
   // Prepare publisher
   camera_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
 
-  // Start capture timer
-  capture_timer_ = create_wall_timer(
-    33ms,
+  // Start capture thread
+  capture_thread_ = std::thread{
     [this]() -> void {
-      RCLCPP_DEBUG(get_logger(), "Capture...");
-      auto img = camera_->capture();
-      auto stamp = now();
-      if (img.encoding != output_encoding_) {
-        img = convert(img);
+      while (rclcpp::ok() && !canceled_.load()) {
+        RCLCPP_DEBUG(get_logger(), "Capture...");
+        auto img = camera_->capture();
+        auto stamp = now();
+        if (img.encoding != output_encoding_) {
+          img = convert(img);
+        }
+        img.header.stamp = stamp;
+
+        auto ci = cinfo_->getCameraInfo();
+        if (!checkCameraInfo(img, ci)) {
+          ci = sensor_msgs::msg::CameraInfo{};
+          ci.height = img.height;
+          ci.width = img.width;
+        }
+
+        ci.header.stamp = stamp;
+
+        camera_pub_.publish(img, ci);
       }
-      img.header.stamp = stamp;
-
-      auto ci = cinfo_->getCameraInfo();
-      if (!checkCameraInfo(img, ci)) {
-        ci = sensor_msgs::msg::CameraInfo{};
-        ci.height = img.height;
-        ci.width = img.width;
-      }
-
-      ci.header.stamp = stamp;
-
-      camera_pub_.publish(img, ci);
-    });
+    }
+  };
 }
 
 V4L2Camera::~V4L2Camera()
 {
+  canceled_.store(true);
+  if (capture_thread_.joinable()) {
+    capture_thread_.join();
+  }
 }
 
 void V4L2Camera::createParameters()
