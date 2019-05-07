@@ -40,7 +40,8 @@ private:
 
   std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 
-  rclcpp::TimerBase::SharedPtr capture_timer_;
+  std::thread capture_thread_;
+  std::atomic<bool> canceled_;
 
   std::string output_encoding_;
 
