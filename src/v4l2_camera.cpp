@@ -85,7 +85,7 @@ V4L2Camera::~V4L2Camera()
 void V4L2Camera::createParameters()
 {
   // Node paramters
-  get_parameter_or_set("output_encoding", output_encoding_, std::string{"rgb8"});
+  output_encoding_ = declare_parameter("output_encoding", std::string{"rgb8"});
 
   // Camera info parameters
   auto camera_info_url = std::string{};
@@ -98,8 +98,9 @@ void V4L2Camera::createParameters()
   }
 
   // Format parameters
-  auto image_size = std::vector<int64_t>{};
-  get_parameter_or_set("image_size", image_size, {640, 480});
+  using ImageSize = std::vector<int64_t>;
+  auto image_size = ImageSize{};
+  image_size = declare_parameter<ImageSize>("image_size", {640, 480});
   requestImageSize(image_size);
 
   // Control parameters
@@ -118,15 +119,13 @@ void V4L2Camera::createParameters()
     switch (c.type) {
       case ControlType::INT:
         {
-          auto value = int64_t{};
-          get_parameter_or_set<int64_t>(name, value, camera_->getControlValue(c.id));
+          auto value = declare_parameter<int64_t>(name, camera_->getControlValue(c.id));
           camera_->setControlValue(c.id, value);
           break;
         }
       case ControlType::BOOL:
         {
-          auto value = bool{};
-          get_parameter_or_set<bool>(name, value, camera_->getControlValue(c.id) != 0);
+          auto value = declare_parameter<bool>(name, camera_->getControlValue(c.id) != 0);
           camera_->setControlValue(c.id, value);
           break;
         }
@@ -140,7 +139,7 @@ void V4L2Camera::createParameters()
   }
 
   // Register callback for parameter value setting
-  register_param_change_callback(
+  set_on_parameters_set_callback(
     [this](std::vector<rclcpp::Parameter> parameters) -> rcl_interfaces::msg::SetParametersResult {
       auto result = rcl_interfaces::msg::SetParametersResult();
       result.successful = true;
