@@ -1,4 +1,4 @@
-image: osrf/ros:crystal-desktop
+image: osrf/ros:dashing-desktop
 
 build:
   stage: build
