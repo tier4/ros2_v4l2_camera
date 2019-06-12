@@ -19,12 +19,14 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camera_info_manager REQUIRED)
 
 add_library(v4l2_camera
   src/v4l2_camera.cpp
   src/v4l2_camera_device.cpp)
+rclcpp_components_register_nodes(v4l2_camera "v4l2_camera::V4L2Camera")
 
 target_include_directories(v4l2_camera PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

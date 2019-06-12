@@ -15,14 +15,15 @@
 #include "v4l2_camera/v4l2_camera.hpp"
 
 #include <sensor_msgs/image_encodings.hpp>
+#include "rclcpp_components/register_node_macro.hpp"
 
 using namespace std::chrono_literals;
 
 namespace v4l2_camera
 {
 
-V4L2Camera::V4L2Camera()
-: rclcpp::Node{"v4l2_camera"},
+V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
+: rclcpp::Node{"v4l2_camera", options},
   canceled_{false}
 {
   // Prepare camera
@@ -311,4 +312,6 @@ bool V4L2Camera::checkCameraInfo(
   return ci.width == img.width && ci.height == img.height;
 }
 
-}  // namespace ros2_v4l2_camera
+}  // namespace v4l2_camera
+
+RCLCPP_COMPONENTS_REGISTER_NODE(v4l2_camera::V4L2Camera)

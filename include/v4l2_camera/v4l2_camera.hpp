@@ -30,7 +30,7 @@ namespace v4l2_camera
 class V4L2Camera : public rclcpp::Node
 {
 public:
-  V4L2Camera();
+  V4L2Camera(rclcpp::NodeOptions const & options);
 
   virtual ~V4L2Camera();
 
