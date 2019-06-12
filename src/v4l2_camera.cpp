@@ -55,21 +55,21 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         RCLCPP_DEBUG(get_logger(), "Capture...");
         auto img = camera_->capture();
         auto stamp = now();
-        if (img.encoding != output_encoding_) {
-          img = convert(img);
+        if (img->encoding != output_encoding_) {
+          img = convert(*img);
         }
-        img.header.stamp = stamp;
+        img->header.stamp = stamp;
 
         auto ci = cinfo_->getCameraInfo();
-        if (!checkCameraInfo(img, ci)) {
+        if (!checkCameraInfo(*img, ci)) {
           ci = sensor_msgs::msg::CameraInfo{};
-          ci.height = img.height;
-          ci.width = img.width;
+          ci.height = img->height;
+          ci.width = img->width;
         }
 
         ci.header.stamp = stamp;
 
-        camera_transport_pub_.publish(img, ci);
+        camera_transport_pub_.publish(*img, ci);
       }
     }
   };
@@ -279,7 +279,7 @@ static void yuyv2rgb(unsigned char const * YUV, unsigned char * RGB, int NumPixe
   }
 }
 
-sensor_msgs::msg::Image V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
+sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
 {
   RCLCPP_DEBUG(get_logger(),
     std::string{"Coverting: "} + img.encoding + " -> " + output_encoding_);
@@ -288,20 +288,20 @@ sensor_msgs::msg::Image V4L2Camera::convert(sensor_msgs::msg::Image const & img)
   if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
     output_encoding_ == sensor_msgs::image_encodings::RGB8)
   {
-    auto outImg = sensor_msgs::msg::Image{};
-    outImg.width = img.width;
-    outImg.height = img.height;
-    outImg.step = img.width * 3;
-    outImg.encoding = output_encoding_;
-    outImg.data.resize(outImg.height * outImg.step);
-    for (auto i = 0u; i < outImg.height; ++i) {
-      yuyv2rgb(img.data.data() + i * img.step, outImg.data.data() + i * outImg.step, outImg.width);
+    auto outImg = std::make_unique<sensor_msgs::msg::Image>();
+    outImg->width = img.width;
+    outImg->height = img.height;
+    outImg->step = img.width * 3;
+    outImg->encoding = output_encoding_;
+    outImg->data.resize(outImg->height * outImg->step);
+    for (auto i = 0u; i < outImg->height; ++i) {
+      yuyv2rgb(img.data.data() + i * img.step, outImg->data.data() + i * outImg->step, outImg->width);
     }
     return outImg;
   } else {
     RCLCPP_WARN_ONCE(get_logger(),
       std::string{"Conversion not supported yet: "} + img.encoding + " -> " + output_encoding_);
-    return img;
+    return nullptr;
   }
 }
 

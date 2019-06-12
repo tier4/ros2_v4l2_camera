@@ -45,7 +45,7 @@ public:
 
   std::string getCameraName();
 
-  sensor_msgs::msg::Image capture();
+  sensor_msgs::msg::Image::UniquePtr capture();
 
 private:
   /// Image buffer

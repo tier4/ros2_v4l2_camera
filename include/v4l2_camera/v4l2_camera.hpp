@@ -52,7 +52,7 @@ private:
 
   bool requestImageSize(std::vector<int64_t> const & size);
 
-  sensor_msgs::msg::Image convert(sensor_msgs::msg::Image const & img) const;
+  sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
 
   bool checkCameraInfo(
     sensor_msgs::msg::Image const & img,
