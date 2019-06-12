@@ -36,7 +36,7 @@ public:
 
 private:
   std::shared_ptr<V4l2CameraDevice> camera_;
-  image_transport::CameraPublisher camera_pub_;
+  image_transport::CameraPublisher camera_transport_pub_;
 
   std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 

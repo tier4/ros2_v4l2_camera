@@ -45,7 +45,7 @@ V4L2Camera::V4L2Camera()
   createParameters();
 
   // Prepare publisher
-  camera_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
+  camera_transport_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
 
   // Start capture thread
   capture_thread_ = std::thread{
@@ -68,7 +68,7 @@ V4L2Camera::V4L2Camera()
 
         ci.header.stamp = stamp;
 
-        camera_pub_.publish(img, ci);
+        camera_transport_pub_.publish(img, ci);
       }
     }
   };
