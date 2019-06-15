@@ -35,6 +35,8 @@ ament_target_dependencies(v4l2_camera
   "image_transport"
   "camera_info_manager")
 
+target_compile_options(v4l2_camera PRIVATE -Werror)
+
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(v4l2_camera PRIVATE "V4L2_CAMERA_BUILDING_LIBRARY")
@@ -56,6 +58,7 @@ target_include_directories(v4l2_camera_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_link_libraries(v4l2_camera_node v4l2_camera)
+target_compile_options(v4l2_camera_node PRIVATE -Werror)
 
 install(TARGETS v4l2_camera_node
   EXPORT export_${PROJECT_NAME}
