@@ -46,7 +46,11 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   createParameters();
 
   // Prepare publisher
-  camera_transport_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
+  if (options.use_intra_process_comms()) {
+    image_pub_ = create_publisher<sensor_msgs::msg::Image>("/image_raw", 10);
+  } else {
+    camera_transport_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
+  }
 
   // Start capture thread
   capture_thread_ = std::thread{
@@ -60,16 +64,23 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         }
         img->header.stamp = stamp;
 
-        auto ci = cinfo_->getCameraInfo();
-        if (!checkCameraInfo(*img, ci)) {
-          ci = sensor_msgs::msg::CameraInfo{};
-          ci.height = img->height;
-          ci.width = img->width;
+        if (get_node_options().use_intra_process_comms()) {
+          std::stringstream ss;
+          ss << "Image message address [PUBLISH]:\t" << img.get();
+          RCLCPP_DEBUG(get_logger(), ss.str());
+          image_pub_->publish(std::move(img));
+        } else {
+          auto ci = cinfo_->getCameraInfo();
+          if (!checkCameraInfo(*img, ci)) {
+            ci = sensor_msgs::msg::CameraInfo{};
+            ci.height = img->height;
+            ci.width = img->width;
+          }
+
+          ci.header.stamp = stamp;
+
+          camera_transport_pub_.publish(*img, ci);
         }
-
-        ci.header.stamp = stamp;
-
-        camera_transport_pub_.publish(*img, ci);
       }
     }
   };
@@ -295,7 +306,8 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
     outImg->encoding = output_encoding_;
     outImg->data.resize(outImg->height * outImg->step);
     for (auto i = 0u; i < outImg->height; ++i) {
-      yuyv2rgb(img.data.data() + i * img.step, outImg->data.data() + i * outImg->step, outImg->width);
+      yuyv2rgb(img.data.data() + i * img.step, outImg->data.data() + i * outImg->step,
+        outImg->width);
     }
     return outImg;
   } else {
