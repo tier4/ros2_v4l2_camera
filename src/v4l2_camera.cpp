@@ -15,14 +15,15 @@
 #include "v4l2_camera/v4l2_camera.hpp"
 
 #include <sensor_msgs/image_encodings.hpp>
+#include "rclcpp_components/register_node_macro.hpp"
 
 using namespace std::chrono_literals;
 
 namespace v4l2_camera
 {
 
-V4L2Camera::V4L2Camera()
-: rclcpp::Node{"v4l2_camera"},
+V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
+: rclcpp::Node{"v4l2_camera", options},
   canceled_{false}
 {
   // Prepare camera
@@ -45,7 +46,11 @@ V4L2Camera::V4L2Camera()
   createParameters();
 
   // Prepare publisher
-  camera_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
+  if (options.use_intra_process_comms()) {
+    image_pub_ = create_publisher<sensor_msgs::msg::Image>("/image_raw", 10);
+  } else {
+    camera_transport_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
+  }
 
   // Start capture thread
   capture_thread_ = std::thread{
@@ -54,21 +59,28 @@ V4L2Camera::V4L2Camera()
         RCLCPP_DEBUG(get_logger(), "Capture...");
         auto img = camera_->capture();
         auto stamp = now();
-        if (img.encoding != output_encoding_) {
-          img = convert(img);
+        if (img->encoding != output_encoding_) {
+          img = convert(*img);
         }
-        img.header.stamp = stamp;
+        img->header.stamp = stamp;
 
-        auto ci = cinfo_->getCameraInfo();
-        if (!checkCameraInfo(img, ci)) {
-          ci = sensor_msgs::msg::CameraInfo{};
-          ci.height = img.height;
-          ci.width = img.width;
+        if (get_node_options().use_intra_process_comms()) {
+          std::stringstream ss;
+          ss << "Image message address [PUBLISH]:\t" << img.get();
+          RCLCPP_DEBUG(get_logger(), ss.str());
+          image_pub_->publish(std::move(img));
+        } else {
+          auto ci = cinfo_->getCameraInfo();
+          if (!checkCameraInfo(*img, ci)) {
+            ci = sensor_msgs::msg::CameraInfo{};
+            ci.height = img->height;
+            ci.width = img->width;
+          }
+
+          ci.header.stamp = stamp;
+
+          camera_transport_pub_.publish(*img, ci);
         }
-
-        ci.header.stamp = stamp;
-
-        camera_pub_.publish(img, ci);
       }
     }
   };
@@ -278,7 +290,7 @@ static void yuyv2rgb(unsigned char const * YUV, unsigned char * RGB, int NumPixe
   }
 }
 
-sensor_msgs::msg::Image V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
+sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
 {
   RCLCPP_DEBUG(get_logger(),
     std::string{"Coverting: "} + img.encoding + " -> " + output_encoding_);
@@ -287,20 +299,21 @@ sensor_msgs::msg::Image V4L2Camera::convert(sensor_msgs::msg::Image const & img)
   if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
     output_encoding_ == sensor_msgs::image_encodings::RGB8)
   {
-    auto outImg = sensor_msgs::msg::Image{};
-    outImg.width = img.width;
-    outImg.height = img.height;
-    outImg.step = img.width * 3;
-    outImg.encoding = output_encoding_;
-    outImg.data.resize(outImg.height * outImg.step);
-    for (auto i = 0u; i < outImg.height; ++i) {
-      yuyv2rgb(img.data.data() + i * img.step, outImg.data.data() + i * outImg.step, outImg.width);
+    auto outImg = std::make_unique<sensor_msgs::msg::Image>();
+    outImg->width = img.width;
+    outImg->height = img.height;
+    outImg->step = img.width * 3;
+    outImg->encoding = output_encoding_;
+    outImg->data.resize(outImg->height * outImg->step);
+    for (auto i = 0u; i < outImg->height; ++i) {
+      yuyv2rgb(img.data.data() + i * img.step, outImg->data.data() + i * outImg->step,
+        outImg->width);
     }
     return outImg;
   } else {
     RCLCPP_WARN_ONCE(get_logger(),
       std::string{"Conversion not supported yet: "} + img.encoding + " -> " + output_encoding_);
-    return img;
+    return nullptr;
   }
 }
 
@@ -311,4 +324,6 @@ bool V4L2Camera::checkCameraInfo(
   return ci.width == img.width && ci.height == img.height;
 }
 
-}  // namespace ros2_v4l2_camera
+}  // namespace v4l2_camera
+
+RCLCPP_COMPONENTS_REGISTER_NODE(v4l2_camera::V4L2Camera)

@@ -30,13 +30,18 @@ namespace v4l2_camera
 class V4L2Camera : public rclcpp::Node
 {
 public:
-  V4L2Camera();
+  V4L2Camera(rclcpp::NodeOptions const & options);
 
   virtual ~V4L2Camera();
 
 private:
   std::shared_ptr<V4l2CameraDevice> camera_;
-  image_transport::CameraPublisher camera_pub_;
+
+  // Publisher used for intra process comm
+  std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::Image>> image_pub_;
+
+  // Publisher used for inter process comm
+  image_transport::CameraPublisher camera_transport_pub_;
 
   std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 
@@ -52,7 +57,7 @@ private:
 
   bool requestImageSize(std::vector<int64_t> const & size);
 
-  sensor_msgs::msg::Image convert(sensor_msgs::msg::Image const & img) const;
+  sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
 
   bool checkCameraInfo(
     sensor_msgs::msg::Image const & img,

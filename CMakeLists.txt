@@ -19,12 +19,14 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camera_info_manager REQUIRED)
 
 add_library(v4l2_camera
   src/v4l2_camera.cpp
   src/v4l2_camera_device.cpp)
+rclcpp_components_register_nodes(v4l2_camera "v4l2_camera::V4L2Camera")
 
 target_include_directories(v4l2_camera PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -60,7 +62,14 @@ target_include_directories(v4l2_camera_node PUBLIC
 target_link_libraries(v4l2_camera_node v4l2_camera)
 target_compile_options(v4l2_camera_node PRIVATE -Werror)
 
-install(TARGETS v4l2_camera_node
+add_executable(v4l2_camera_compose_test src/v4l2_camera_compose_test.cpp)
+target_include_directories(v4l2_camera_compose_test PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_link_libraries(v4l2_camera_compose_test v4l2_camera)
+target_compile_options(v4l2_camera_compose_test PRIVATE -Werror)
+
+install(TARGETS v4l2_camera_node v4l2_camera_compose_test
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME})
 

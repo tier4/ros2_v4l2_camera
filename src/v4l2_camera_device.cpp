@@ -162,7 +162,7 @@ std::string V4l2CameraDevice::getCameraName()
   return name;
 }
 
-Image V4l2CameraDevice::capture()
+Image::UniquePtr V4l2CameraDevice::capture()
 {
   auto buf = v4l2_buffer{};
 
@@ -174,7 +174,7 @@ Image V4l2CameraDevice::capture()
     RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
       std::string{"Error dequeueing buffer: "} +
       strerror(errno) + " (" + std::to_string(errno) + ")");
-    return Image{};
+    return nullptr;
   }
 
   // Requeue buffer to be reused for new captures
@@ -182,23 +182,23 @@ Image V4l2CameraDevice::capture()
     RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
       std::string{"Error re-queueing buffer: "} +
       strerror(errno) + " (" + std::to_string(errno) + ")");
-    return Image{};
+    return nullptr;
   }
 
   // Create image object
-  auto img = Image{};
-  img.width = cur_data_format_.width;
-  img.height = cur_data_format_.height;
-  img.step = cur_data_format_.bytesPerLine;
+  auto img = std::make_unique<Image>();
+  img->width = cur_data_format_.width;
+  img->height = cur_data_format_.height;
+  img->step = cur_data_format_.bytesPerLine;
   if (cur_data_format_.pixelFormat == V4L2_PIX_FMT_YUYV) {
-    img.encoding = sensor_msgs::image_encodings::YUV422;
+    img->encoding = sensor_msgs::image_encodings::YUV422;
   } else {
     RCLCPP_WARN(rclcpp::get_logger("v4l2_camera"), "Current pixel format is not supported yet");
   }
-  img.data.resize(cur_data_format_.imageByteSize);
+  img->data.resize(cur_data_format_.imageByteSize);
 
   auto const & buffer = buffers_[buf.index];
-  std::copy(buffer.start, buffer.start + img.data.size(), img.data.begin());
+  std::copy(buffer.start, buffer.start + img->data.size(), img->data.begin());
   return img;
 }
 
