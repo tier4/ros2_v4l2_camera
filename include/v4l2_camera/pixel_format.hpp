@@ -65,6 +65,6 @@ struct PixelFormat
   }
 };
 
-} // namespace v4l2_camera
+}  // namespace v4l2_camera
 
 #endif  // V4L2_CAMERA__PIXEL_FORMAT_HPP_
