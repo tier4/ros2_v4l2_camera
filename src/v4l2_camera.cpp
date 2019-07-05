@@ -260,9 +260,9 @@ static void YUV2RGB(
   const unsigned char y, const unsigned char u, const unsigned char v, unsigned char * r,
   unsigned char * g, unsigned char * b)
 {
-  const int y2 = (int)y;
-  const int u2 = (int)u - 128;
-  const int v2 = (int)v - 128;
+  const int y2 = static_cast<int>(y);
+  const int u2 = static_cast<int>(u) - 128;
+  const int v2 = static_cast<int>(v) - 128;
   //std::cerr << "YUV=("<<y2<<","<<u2<<","<<v2<<")"<<std::endl;
 
   // This is the normal YUV conversion, but
