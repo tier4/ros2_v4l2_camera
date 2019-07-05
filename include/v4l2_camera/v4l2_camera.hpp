@@ -19,6 +19,11 @@
 
 #include "v4l2_camera/v4l2_camera_device.hpp"
 
+#include <memory>
+#include <string>
+#include <map>
+#include <vector>
+
 #include <rclcpp/rclcpp.hpp>
 #include <rcl_interfaces/msg/parameter.hpp>
 #include <camera_info_manager/camera_info_manager.h>

@@ -14,6 +14,8 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
+#include <memory>
+
 class ComposeTest : public rclcpp::Node
 {
 public:

@@ -20,6 +20,14 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
+#include <vector>
+#include <map>
+#include <vector>
+#include <algorithm>
+#include <string>
+#include <utility>
+#include <memory>
+
 #include <sensor_msgs/image_encodings.hpp>
 
 using namespace v4l2_camera;

@@ -14,6 +14,12 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
+#include <string>
+#include <memory>
+#include <utility>
+#include <vector>
+#include <algorithm>
+
 #include <sensor_msgs/image_encodings.hpp>
 #include "rclcpp_components/register_node_macro.hpp"
 

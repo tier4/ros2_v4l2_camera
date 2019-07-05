@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "v4l2_camera/v4l2_camera.hpp"
 
 int main(int argc, char ** argv)

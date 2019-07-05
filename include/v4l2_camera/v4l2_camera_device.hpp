@@ -21,6 +21,8 @@
 
 #include <sensor_msgs/msg/image.hpp>
 #include <map>
+#include <string>
+#include <vector>
 
 namespace v4l2_camera
 {
