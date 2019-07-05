@@ -161,7 +161,7 @@ bool V4l2CameraDevice::stop()
 
 std::string V4l2CameraDevice::getCameraName()
 {
-  auto name = std::string{(char *)capabilities_.card};
+  auto name = std::string{reinterpret_cast<char *>(capabilities_.card)};
   std::transform(name.begin(), name.end(), name.begin(), ::tolower);
   std::replace(name.begin(), name.end(), ' ', '_');
   return name;
