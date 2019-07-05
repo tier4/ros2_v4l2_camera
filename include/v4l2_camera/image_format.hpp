@@ -27,7 +27,7 @@ namespace v4l2_camera
  */
 struct ImageFormat
 {
-  ImageFormat(v4l2_fmtdesc const & fd)
+  explicit ImageFormat(v4l2_fmtdesc const & fd)
   : index(fd.index),
     type(fd.type),
     flags(fd.flags),

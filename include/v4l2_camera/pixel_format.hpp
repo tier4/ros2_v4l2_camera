@@ -30,7 +30,7 @@ struct PixelFormat
   PixelFormat()
   {}
 
-  PixelFormat(v4l2_pix_format const & pf)
+  explicit PixelFormat(v4l2_pix_format const & pf)
   : width{pf.width},
     height{pf.height},
     pixelFormat{pf.pixelformat},

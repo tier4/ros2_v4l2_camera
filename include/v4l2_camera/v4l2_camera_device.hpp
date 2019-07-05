@@ -33,7 +33,7 @@ namespace v4l2_camera
 class V4l2CameraDevice
 {
 public:
-  V4l2CameraDevice(std::string device);
+  explicit V4l2CameraDevice(std::string device);
 
   bool open();
   bool start();

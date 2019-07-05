@@ -19,7 +19,7 @@
 class ComposeTest : public rclcpp::Node
 {
 public:
-  ComposeTest(rclcpp::NodeOptions const & options)
+  explicit ComposeTest(rclcpp::NodeOptions const & options)
   : rclcpp::Node{"compose_test", options}
   {
     img_sub_ =
