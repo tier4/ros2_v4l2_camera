@@ -71,4 +71,4 @@ private:
 
 }  // namespace v4l2_camera
 
-#endif  // V4L2_CAMERA__ROS2_V4L2_CAMERA_HPP_
+#endif  // V4L2_CAMERA__V4L2_CAMERA_HPP_

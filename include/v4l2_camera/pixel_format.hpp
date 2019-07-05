@@ -67,4 +67,4 @@ struct PixelFormat
 
 }
 
-#endif
+#endif  // V4L2_CAMERA__PIXEL_FORMAT_HPP_

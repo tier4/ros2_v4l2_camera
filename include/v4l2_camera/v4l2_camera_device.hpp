@@ -81,4 +81,4 @@ private:
 
 }
 
-#endif
+#endif  // V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_

@@ -61,4 +61,4 @@ struct Control
 
 }
 
-#endif
+#endif  // V4L2_CAMERA__CONTROL_HPP_
