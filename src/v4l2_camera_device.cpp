@@ -27,8 +27,8 @@
 #include <utility>
 #include <memory>
 
-using namespace v4l2_camera;
-using namespace sensor_msgs::msg;
+using v4l2_camera::V4l2CameraDevice;
+using sensor_msgs::msg::Image;
 
 V4l2CameraDevice::V4l2CameraDevice(std::string device)
 : device_{std::move(device)}
