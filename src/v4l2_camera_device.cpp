@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "v4l2_camera/v4l2_camera_device.hpp"
-
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/image_encodings.hpp>
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -22,13 +22,10 @@
 
 #include <vector>
 #include <map>
-#include <vector>
 #include <algorithm>
 #include <string>
 #include <utility>
 #include <memory>
-
-#include <sensor_msgs/image_encodings.hpp>
 
 using namespace v4l2_camera;
 using namespace sensor_msgs::msg;

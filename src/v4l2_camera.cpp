@@ -14,13 +14,14 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
+#include <sensor_msgs/image_encodings.hpp>
+
 #include <string>
 #include <memory>
 #include <utility>
 #include <vector>
 #include <algorithm>
 
-#include <sensor_msgs/image_encodings.hpp>
 #include "rclcpp_components/register_node_macro.hpp"
 
 using namespace std::chrono_literals;
@@ -149,7 +150,7 @@ void V4L2Camera::createParameters()
         }
       case ControlType::MENU:
         {
-          // TODO: treating as integer parameter, implement full menu functionality
+          // TODO(sander): treating as integer parameter, implement full menu functionality
           auto value = declare_parameter<int64_t>(name, camera_->getControlValue(c.id));
           camera_->setControlValue(c.id, value);
           break;
@@ -308,7 +309,7 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
   RCLCPP_DEBUG(get_logger(),
     std::string{"Coverting: "} + img.encoding + " -> " + output_encoding_);
 
-  // TODO: temporary until cv_bridge and image_proc are available in ROS 2
+  // TODO(sander): temporary until cv_bridge and image_proc are available in ROS 2
   if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
     output_encoding_ == sensor_msgs::image_encodings::RGB8)
   {
