@@ -141,6 +141,13 @@ void V4L2Camera::createParameters()
           camera_->setControlValue(c.id, value);
           break;
         }
+      case ControlType::MENU:
+        {
+          // TODO: treating as integer parameter, implement full menu functionality
+          auto value = declare_parameter<int64_t>(name, camera_->getControlValue(c.id));
+          camera_->setControlValue(c.id, value);
+          break;
+        }
       default:
         RCLCPP_WARN(get_logger(),
           std::string{"Control type not currently supported: "} + std::to_string(unsigned(c.type)) +
