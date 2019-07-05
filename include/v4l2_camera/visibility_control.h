@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ROS2_V4L2_CAMERA__VISIBILITY_CONTROL_H_
-#define ROS2_V4L2_CAMERA__VISIBILITY_CONTROL_H_
+#ifndef V4L2_CAMERA__VISIBILITY_CONTROL_H_
+#define V4L2_CAMERA__VISIBILITY_CONTROL_H_
 
 // This logic was borrowed (then namespaced) from the examples on the gcc wiki:
 //     https://gcc.gnu.org/wiki/Visibility
