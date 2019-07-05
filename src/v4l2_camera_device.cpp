@@ -328,7 +328,6 @@ void V4l2CameraDevice::listControls()
     // Get ready to query next item
     queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
   }
-
 }
 
 bool V4l2CameraDevice::initMemoryMapping()
