@@ -59,6 +59,6 @@ struct Control
   std::map<int, std::string> menuItems;
 };
 
-}
+} // namespace v4l2_camera
 
 #endif  // V4L2_CAMERA__CONTROL_HPP_

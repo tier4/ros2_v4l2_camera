@@ -80,6 +80,6 @@ private:
   bool initMemoryMapping();
 };
 
-}
+} // namespace v4l2_camera
 
 #endif  // V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
