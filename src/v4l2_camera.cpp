@@ -15,6 +15,13 @@
 #include "v4l2_camera/v4l2_camera.hpp"
 
 #include <sensor_msgs/image_encodings.hpp>
+
+#include <string>
+#include <memory>
+#include <utility>
+#include <vector>
+#include <algorithm>
+
 #include "rclcpp_components/register_node_macro.hpp"
 
 using namespace std::chrono_literals;
@@ -143,7 +150,7 @@ void V4L2Camera::createParameters()
         }
       case ControlType::MENU:
         {
-          // TODO: treating as integer parameter, implement full menu functionality
+          // TODO(sander): treating as integer parameter, implement full menu functionality
           auto value = declare_parameter<int64_t>(name, camera_->getControlValue(c.id));
           camera_->setControlValue(c.id, value);
           break;
@@ -253,10 +260,10 @@ static void YUV2RGB(
   const unsigned char y, const unsigned char u, const unsigned char v, unsigned char * r,
   unsigned char * g, unsigned char * b)
 {
-  const int y2 = (int)y;
-  const int u2 = (int)u - 128;
-  const int v2 = (int)v - 128;
-  //std::cerr << "YUV=("<<y2<<","<<u2<<","<<v2<<")"<<std::endl;
+  const int y2 = static_cast<int>(y);
+  const int u2 = static_cast<int>(u) - 128;
+  const int v2 = static_cast<int>(v) - 128;
+  // std::cerr << "YUV=("<<y2<<","<<u2<<","<<v2<<")"<<std::endl;
 
   // This is the normal YUV conversion, but
   // appears to be incorrect for the firewire cameras
@@ -267,7 +274,7 @@ static void YUV2RGB(
   int r2 = y2 + ((v2 * 37221) >> 15);
   int g2 = y2 - (((u2 * 12975) + (v2 * 18949)) >> 15);
   int b2 = y2 + ((u2 * 66883) >> 15);
-  //std::cerr << "   RGB=("<<r2<<","<<g2<<","<<b2<<")"<<std::endl;
+  // std::cerr << "   RGB=("<<r2<<","<<g2<<","<<b2<<")"<<std::endl;
 
   // Cap the values.
   *r = CLIPVALUE(r2);
@@ -302,7 +309,7 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
   RCLCPP_DEBUG(get_logger(),
     std::string{"Coverting: "} + img.encoding + " -> " + output_encoding_);
 
-  // TODO: temporary until cv_bridge and image_proc are available in ROS 2
+  // TODO(sander): temporary until cv_bridge and image_proc are available in ROS 2
   if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
     output_encoding_ == sensor_msgs::image_encodings::RGB8)
   {

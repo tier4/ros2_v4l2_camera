@@ -30,7 +30,7 @@ struct PixelFormat
   PixelFormat()
   {}
 
-  PixelFormat(v4l2_pix_format const & pf)
+  explicit PixelFormat(v4l2_pix_format const & pf)
   : width{pf.width},
     height{pf.height},
     pixelFormat{pf.pixelformat},
@@ -65,6 +65,6 @@ struct PixelFormat
   }
 };
 
-}
+}  // namespace v4l2_camera
 
-#endif
+#endif  // V4L2_CAMERA__PIXEL_FORMAT_HPP_

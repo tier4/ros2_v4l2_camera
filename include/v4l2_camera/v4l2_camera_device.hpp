@@ -15,12 +15,15 @@
 #ifndef V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 #define V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 
+#include <sensor_msgs/msg/image.hpp>
+
+#include <map>
+#include <string>
+#include <vector>
+
 #include "v4l2_camera/control.hpp"
 #include "v4l2_camera/image_format.hpp"
 #include "v4l2_camera/pixel_format.hpp"
-
-#include <sensor_msgs/msg/image.hpp>
-#include <map>
 
 namespace v4l2_camera
 {
@@ -30,7 +33,7 @@ namespace v4l2_camera
 class V4l2CameraDevice
 {
 public:
-  V4l2CameraDevice(std::string device);
+  explicit V4l2CameraDevice(std::string device);
 
   bool open();
   bool start();
@@ -77,6 +80,6 @@ private:
   bool initMemoryMapping();
 };
 
-}
+}  // namespace v4l2_camera
 
-#endif
+#endif  // V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_

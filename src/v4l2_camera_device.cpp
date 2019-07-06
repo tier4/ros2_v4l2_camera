@@ -13,17 +13,22 @@
 // limitations under the License.
 
 #include "v4l2_camera/v4l2_camera_device.hpp"
-
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/image_encodings.hpp>
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include <sensor_msgs/image_encodings.hpp>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <string>
+#include <utility>
+#include <memory>
 
-using namespace v4l2_camera;
-using namespace sensor_msgs::msg;
+using v4l2_camera::V4l2CameraDevice;
+using sensor_msgs::msg::Image;
 
 V4l2CameraDevice::V4l2CameraDevice(std::string device)
 : device_{std::move(device)}
@@ -156,7 +161,7 @@ bool V4l2CameraDevice::stop()
 
 std::string V4l2CameraDevice::getCameraName()
 {
-  auto name = std::string{(char *)capabilities_.card};
+  auto name = std::string{reinterpret_cast<char *>(capabilities_.card)};
   std::transform(name.begin(), name.end(), name.begin(), ::tolower);
   std::replace(name.begin(), name.end(), ' ', '_');
   return name;
@@ -320,7 +325,6 @@ void V4l2CameraDevice::listControls()
     // Get ready to query next item
     queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
   }
-
 }
 
 bool V4l2CameraDevice::initMemoryMapping()
