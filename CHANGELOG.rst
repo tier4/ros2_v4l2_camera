@@ -2,8 +2,8 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.1 (2019-08-12)
+------------------
 * Add missing rclcpp_components build dependency
 * Contributors: Sander G. van Dijk
 
