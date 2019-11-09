@@ -34,20 +34,18 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   canceled_{false}
 {
   // Prepare camera
-  auto device = std::string{"/dev/video0"};
-  get_parameter("video_device", device);
+  auto device = declare_parameter<std::string>("video_device", "/dev/video0");
   camera_ = std::make_shared<V4l2CameraDevice>(device);
 
   if (!camera_->open()) {
     return;
   }
 
-  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
+  // Request pixel format
+  auto pixel_format = declare_parameter<std::string>("pixel_format", "YUYV");
+  requestPixelFormat(pixel_format);
 
-  // Start the camera
-  if (!camera_->start()) {
-    return;
-  }
+  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
 
   // Read parameters and set up callback
   createParameters();
@@ -57,6 +55,11 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     image_pub_ = create_publisher<sensor_msgs::msg::Image>("/image_raw", 10);
   } else {
     camera_transport_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
+  }
+
+  // Start the camera
+  if (!camera_->start()) {
+    return;
   }
 
   // Start capture thread
@@ -103,7 +106,7 @@ V4L2Camera::~V4L2Camera()
 
 void V4L2Camera::createParameters()
 {
-  // Node paramters
+  // Node parameters
   output_encoding_ = declare_parameter("output_encoding", std::string{"rgb8"});
 
   // Camera info parameters
@@ -195,7 +198,10 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
     output_encoding_ = param.as_string();
     return true;
   } else if (param.get_name() == "size") {
-    return requestImageSize(param.as_integer_array());
+    camera_->stop();
+    auto success = requestImageSize(param.as_integer_array());
+    camera_->start();
+    return success;
   } else if (param.get_name() == "camera_info_url") {
     auto camera_info_url = param.as_string();
     if (cinfo_->validateURL(camera_info_url)) {
@@ -209,23 +215,43 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
   return false;
 }
 
+bool V4L2Camera::requestPixelFormat(std::string const & fourcc)
+{
+  if (fourcc.size() != 4) {
+    RCLCPP_ERROR(get_logger(), "Invalid pixel format size: must be a 4 character code (FOURCC).");
+    return false;
+  }
+
+  auto code = v4l2_fourcc(fourcc[0], fourcc[1], fourcc[2], fourcc[3]);
+
+  auto dataFormat = camera_->getCurrentDataFormat();
+  // Do not apply if camera already runs at given pixel format
+  if (dataFormat.pixelFormat == code) {
+    return true;
+  }
+
+  dataFormat.pixelFormat = code;
+  return camera_->requestDataFormat(dataFormat);
+}
+
 bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
 {
-  if (size.size() == 2) {
-    auto dataFormat = camera_->getCurrentDataFormat();
-    // Do not apply if camera already runs at given size
-    if (dataFormat.width == size[0] && dataFormat.height == size[1]) {
-      return true;
-    }
-    dataFormat.width = size[0];
-    dataFormat.height = size[1];
-    return camera_->requestDataFormat(dataFormat);
-  } else {
+  if (size.size() != 2) {
     RCLCPP_WARN(
       get_logger(),
       "Invalid image size; expected dimensions: 2, actual: " + std::to_string(size.size()));
     return false;
   }
+
+  auto dataFormat = camera_->getCurrentDataFormat();
+  // Do not apply if camera already runs at given size
+  if (dataFormat.width == size[0] && dataFormat.height == size[1]) {
+    return true;
+  }
+
+  dataFormat.width = size[0];
+  dataFormat.height = size[1];
+  return camera_->requestDataFormat(dataFormat);
 }
 
 static unsigned char CLIPVALUE(int val)
