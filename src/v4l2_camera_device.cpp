@@ -249,19 +249,11 @@ bool V4l2CameraDevice::requestDataFormat(const PixelFormat & format)
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
     "Requesting format: " + std::to_string(format.width) + "x" + std::to_string(format.height));
 
-  if (!stop()) {
-    return false;
-  }
-
   // Perform request
   if (-1 == ioctl(fd_, VIDIOC_S_FMT, &formatReq)) {
     RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"),
       std::string{"Failed requesting pixel format"} +
       ": " + strerror(errno) + " (" + std::to_string(errno) + ")");
-    return false;
-  }
-
-  if (!start()) {
     return false;
   }
 

@@ -42,12 +42,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     return;
   }
 
-  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
 
-  // Start the camera
-  if (!camera_->start()) {
-    return;
-  }
+  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
 
   // Read parameters and set up callback
   createParameters();
@@ -57,6 +53,11 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     image_pub_ = create_publisher<sensor_msgs::msg::Image>("/image_raw", 10);
   } else {
     camera_transport_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
+  }
+
+  // Start the camera
+  if (!camera_->start()) {
+    return;
   }
 
   // Start capture thread
@@ -195,7 +196,10 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
     output_encoding_ = param.as_string();
     return true;
   } else if (param.get_name() == "size") {
-    return requestImageSize(param.as_integer_array());
+    camera_->stop();
+    auto success = requestImageSize(param.as_integer_array());
+    camera_->start();
+    return success;
   } else if (param.get_name() == "camera_info_url") {
     auto camera_info_url = param.as_string();
     if (cinfo_->validateURL(camera_info_url)) {
