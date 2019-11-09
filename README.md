@@ -15,7 +15,7 @@ A ROS 2 camera driver using Video4Linux2 (V4L2).
     Note that `image_transport` only supports raw transport by default
     and needs additional plugins to actually provide compression; see
     below how to do this.
-  
+
 ## Nodes
 
 ### v4l2_camera_node
@@ -34,6 +34,14 @@ publishes images as `sensor_msgs/Image` messages.
 * `video_device` - `string`, default: `"/dev/video0"`
 
     The device the camera is on.
+
+* `pixel_format` - `string`, default: `"YUYV"`
+
+    The pixel format to request from the camera. Must be a valid four
+    character '[FOURCC](http://fourcc.org/)' code [supported by
+    V4L2](https://linuxtv.org/downloads/v4l-dvb-apis/uapi/v4l/videodev.html)
+    and by your camera. The node outputs the available formats
+    supported by your camera when started.
 
 * `output_encoding` - `string`, default: `"rgb8"`
 
