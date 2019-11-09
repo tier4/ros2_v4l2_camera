@@ -1,16 +1,22 @@
 image: osrf/ros:dashing-desktop
 
+variables:
+  GIT_CLONE_PATH: $CI_BUILDS_DIR/src/ros2_v4l2_camera
+
 build:
   stage: build
   script:
-  - pip3 install -U pytest colcon-common-extensions
-  - mkdir -p /workspace/src
-  - cp -r $(pwd) /workspace/src/ros2_v4l2_camera
-  - cd /workspace
-  - mkdir $CI_PROJECT_DIR/build && ln -s $CI_PROJECT_DIR/build .
-  - git clone --branch ros2 --depth 1 https://github.com/ros-perception/image_common.git src/image_common
-  - colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug
-  - colcon test --event-handlers console_cohesion+ --return-code-on-test-failure --packages-select v4l2_camera
+    - mkdir build
+    - mkdir install
+    # Install dependencies
+    - pip3 install -U pytest colcon-common-extensions
+    - cd ${CI_BUILDS_DIR}
+    - apt-get update && rosdep update && rosdep install --from-paths src -r -y
+    # Link artifact directories so they can be uploaded
+    - ln -s src/ros2_v4l2_camera/build build
+    - ln -s src/ros2_v4l2_camera/install install
+    - colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug
+    - colcon test --event-handlers console_cohesion+ --return-code-on-test-failure --packages-select v4l2_camera
   artifacts:
     reports:
       junit: build/v4l2_camera/test_results/v4l2_camera/*.xunit.xml
