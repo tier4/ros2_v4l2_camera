@@ -6,17 +6,19 @@ variables:
 build:
   stage: build
   script:
-    - mkdir build
-    - mkdir install
     # Install dependencies
-    - pip3 install -U pytest colcon-common-extensions
+    - pip3 install -U pytest colcon-common-extensions colcon-test-result
     - cd ${CI_BUILDS_DIR}
     - apt-get update && rosdep update && rosdep install --from-paths src -r -y
-    # Link artifact directories so they can be uploaded
-    - ln -s src/ros2_v4l2_camera/build build
-    - ln -s src/ros2_v4l2_camera/install install
+    # Build
     - colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug
-    - colcon test --event-handlers console_cohesion+ --return-code-on-test-failure --packages-select v4l2_camera
+    # Test
+    - colcon test --event-handlers console_cohesion+ --packages-select v4l2_camera
+    # Move artifact directories so they can be uploaded
+    - cp -r build src/ros2_v4l2_camera/build
+    - cp -r install src/ros2_v4l2_camera/install
+    # Summarize tests and fail on test failures
+    - colcon test-result
   artifacts:
     reports:
       junit: build/v4l2_camera/test_results/v4l2_camera/*.xunit.xml
