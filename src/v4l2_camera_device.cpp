@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "v4l2_camera/v4l2_camera_device.hpp"
+
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 
@@ -26,6 +27,8 @@
 #include <string>
 #include <utility>
 #include <memory>
+
+#include "v4l2_camera/fourcc.hpp"
 
 using v4l2_camera::V4l2CameraDevice;
 using sensor_msgs::msg::Image;
@@ -74,22 +77,26 @@ bool V4l2CameraDevice::open()
   ioctl(fd_, VIDIOC_G_FMT, &formatReq);
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
 
-  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
-    "Current pixel format: " + cur_data_format_.pixelFormatString() +
+  RCLCPP_INFO(
+    rclcpp::get_logger("v4l2_camera"),
+    "Current pixel format: " + FourCC::toString(cur_data_format_.pixelFormat) +
     " @ " + std::to_string(cur_data_format_.width) + "x" + std::to_string(cur_data_format_.height));
 
   // List all available image formats and controls
   listImageFormats();
   listControls();
 
-  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available image formats: ");
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available pixel formats: ");
   for (auto const & format : image_formats_) {
-    RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "  " + format.description);
+    RCLCPP_INFO(
+      rclcpp::get_logger("v4l2_camera"),
+      "  " + FourCC::toString(format.pixelFormat) + " - " + format.description);
   }
 
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available controls: ");
   for (auto const & control : controls_) {
-    RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"),
+    RCLCPP_INFO(
+      rclcpp::get_logger("v4l2_camera"),
       "  " + control.name + " (" + std::to_string(static_cast<unsigned>(control.type)) + ") = " +
       std::to_string(getControlValue(control.id)));
   }
