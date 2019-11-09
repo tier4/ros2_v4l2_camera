@@ -34,8 +34,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   canceled_{false}
 {
   // Prepare camera
-  auto device = std::string{"/dev/video0"};
-  get_parameter("video_device", device);
+  auto device = declare_parameter<std::string>("video_device", "/dev/video0");
   camera_ = std::make_shared<V4l2CameraDevice>(device);
 
   if (!camera_->open()) {
