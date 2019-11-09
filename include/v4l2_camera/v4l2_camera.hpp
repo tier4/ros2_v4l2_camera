@@ -61,6 +61,7 @@ private:
   void createParameters();
   bool handleParameter(rclcpp::Parameter const & param);
 
+  bool requestPixelFormat(std::string const & fourcc);
   bool requestImageSize(std::vector<int64_t> const & size);
 
   sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
