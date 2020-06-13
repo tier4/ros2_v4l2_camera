@@ -168,7 +168,7 @@ void V4L2Camera::createParameters()
   }
 
   // Register callback for parameter value setting
-  set_on_parameters_set_callback(
+  add_on_set_parameters_callback(
     [this](std::vector<rclcpp::Parameter> parameters) -> rcl_interfaces::msg::SetParametersResult {
       auto result = rcl_interfaces::msg::SetParametersResult();
       result.successful = true;
