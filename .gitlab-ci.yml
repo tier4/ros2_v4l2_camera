@@ -6,10 +6,12 @@ variables:
 build:
   stage: build
   script:
+    - apt update
+    - apt install python3-pip -y
     # Install dependencies
     - pip3 install -U pytest colcon-common-extensions colcon-test-result
     - cd ${CI_BUILDS_DIR}
-    - apt-get update && rosdep update && rosdep install --from-paths src -r -y
+    - rosdep update && rosdep install --from-paths src -r -y
     # Build
     - colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug
     # Test
