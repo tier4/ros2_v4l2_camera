@@ -17,8 +17,8 @@
 
 #include "v4l2_camera/v4l2_camera_device.hpp"
 
-#include <camera_info_manager/camera_info_manager.h>
-#include <image_transport/image_transport.h>
+#include <camera_info_manager/camera_info_manager.hpp>
+#include <image_transport/image_transport.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rcl_interfaces/msg/parameter.hpp>
