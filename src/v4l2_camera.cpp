@@ -159,7 +159,8 @@ void V4L2Camera::createParameters()
           break;
         }
       default:
-        RCLCPP_WARN(get_logger(),
+        RCLCPP_WARN(
+          get_logger(),
           std::string{"Control type not currently supported: "} + std::to_string(unsigned(c.type)) +
           ", for controle: " + c.name);
         continue;
@@ -189,7 +190,8 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
       case rclcpp::ParameterType::PARAMETER_INTEGER:
         return camera_->setControlValue(control_name_to_id_[name], param.as_int());
       default:
-        RCLCPP_WARN(get_logger(),
+        RCLCPP_WARN(
+          get_logger(),
           std::string{"Control parameter type not currently supported: "} +
           std::to_string(unsigned(param.get_type())) +
           ", for parameter: " + param.get_name());
@@ -332,7 +334,8 @@ static void yuyv2rgb(unsigned char const * YUV, unsigned char * RGB, int NumPixe
 
 sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
 {
-  RCLCPP_DEBUG(get_logger(),
+  RCLCPP_DEBUG(
+    get_logger(),
     std::string{"Coverting: "} + img.encoding + " -> " + output_encoding_);
 
   // TODO(sander): temporary until cv_bridge and image_proc are available in ROS 2
@@ -346,12 +349,14 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
     outImg->encoding = output_encoding_;
     outImg->data.resize(outImg->height * outImg->step);
     for (auto i = 0u; i < outImg->height; ++i) {
-      yuyv2rgb(img.data.data() + i * img.step, outImg->data.data() + i * outImg->step,
+      yuyv2rgb(
+        img.data.data() + i * img.step, outImg->data.data() + i * outImg->step,
         outImg->width);
     }
     return outImg;
   } else {
-    RCLCPP_WARN_ONCE(get_logger(),
+    RCLCPP_WARN_ONCE(
+      get_logger(),
       std::string{"Conversion not supported yet: "} + img.encoding + " -> " + output_encoding_);
     return nullptr;
   }

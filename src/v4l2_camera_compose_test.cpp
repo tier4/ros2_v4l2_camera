@@ -23,13 +23,14 @@ public:
   : rclcpp::Node{"compose_test", options}
   {
     img_sub_ =
-      create_subscription<sensor_msgs::msg::Image>("/image_raw",
-        10,
-        [this](sensor_msgs::msg::Image::UniquePtr img) {
-          std::stringstream ss;
-          ss << "Image message address [RECEIVE]:\t" << img.get();
-          RCLCPP_DEBUG(get_logger(), ss.str());
-        });
+      create_subscription<sensor_msgs::msg::Image>(
+      "/image_raw",
+      10,
+      [this](sensor_msgs::msg::Image::UniquePtr img) {
+        std::stringstream ss;
+        ss << "Image message address [RECEIVE]:\t" << img.get();
+        RCLCPP_DEBUG(get_logger(), ss.str());
+      });
   }
 
 private:
