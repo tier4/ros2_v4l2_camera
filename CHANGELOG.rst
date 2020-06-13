@@ -2,8 +2,8 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.0 (2020-06-13)
+------------------
 * Set frame_id on published images, default to "camera"
 * Output FOURCC code of available formats
 * Add parameter for setting the pixel format
