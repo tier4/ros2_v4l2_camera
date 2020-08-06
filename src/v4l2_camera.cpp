@@ -52,9 +52,9 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
   // Prepare publisher
   if (options.use_intra_process_comms()) {
-    image_pub_ = create_publisher<sensor_msgs::msg::Image>("/image_raw", 10);
+    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", 10);
   } else {
-    camera_transport_pub_ = image_transport::create_camera_publisher(this, "/image_raw");
+    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw");
   }
 
   // Start the camera
