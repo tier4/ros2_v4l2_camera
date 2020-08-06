@@ -59,6 +59,8 @@ private:
 
   std::map<std::string, int32_t> control_name_to_id_;
 
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr on_set_parameters_callback_;
+
   void createParameters();
   bool handleParameter(rclcpp::Parameter const & param);
 
