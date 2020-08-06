@@ -2,8 +2,8 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.1 (2020-08-06)
+------------------
 * Hold reference to parameters callback handle
 * Contributors: Jacob Perron
 
