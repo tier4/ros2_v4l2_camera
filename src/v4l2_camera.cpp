@@ -341,7 +341,7 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
 {
   RCLCPP_DEBUG(
     get_logger(),
-    std::string{"Coverting: "} + img.encoding + " -> " + output_encoding_);
+    std::string{"Converting: "} + img.encoding + " -> " + output_encoding_);
 
   // TODO(sander): temporary until cv_bridge and image_proc are available in ROS 2
   if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
