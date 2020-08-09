@@ -33,6 +33,15 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 : rclcpp::Node{"v4l2_camera", options},
   canceled_{false}
 {
+  // Prepare publisher
+  // This should happen before registering on_set_parameters_callback,
+  // else transport plugins will fail to declare their parameters
+  if (options.use_intra_process_comms()) {
+    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", 10);
+  } else {
+    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw");
+  }
+
   // Prepare camera
   auto device = declare_parameter<std::string>("video_device", "/dev/video0");
   camera_ = std::make_shared<V4l2CameraDevice>(device);
@@ -49,13 +58,6 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
   // Read parameters and set up callback
   createParameters();
-
-  // Prepare publisher
-  if (options.use_intra_process_comms()) {
-    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", 10);
-  } else {
-    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw");
-  }
 
   // Start the camera
   if (!camera_->start()) {
