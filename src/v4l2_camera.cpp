@@ -38,6 +38,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // else transport plugins will fail to declare their parameters
   if (options.use_intra_process_comms()) {
     image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", 10);
+    info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("camera_info", 10);
   } else {
     camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw");
   }
@@ -77,22 +78,21 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         img->header.stamp = stamp;
         img->header.frame_id = camera_frame_id_;
 
+        auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
+        if (!checkCameraInfo(*img, *ci)) {
+          *ci = sensor_msgs::msg::CameraInfo{};
+          ci->height = img->height;
+          ci->width = img->width;
+        }
+
+        ci->header.stamp = stamp;
+
         if (get_node_options().use_intra_process_comms()) {
-          std::stringstream ss;
-          ss << "Image message address [PUBLISH]:\t" << img.get();
-          RCLCPP_DEBUG(get_logger(), ss.str());
+          RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
           image_pub_->publish(std::move(img));
+          info_pub_->publish(std::move(ci));
         } else {
-          auto ci = cinfo_->getCameraInfo();
-          if (!checkCameraInfo(*img, ci)) {
-            ci = sensor_msgs::msg::CameraInfo{};
-            ci.height = img->height;
-            ci.width = img->width;
-          }
-
-          ci.header.stamp = stamp;
-
-          camera_transport_pub_.publish(*img, ci);
+          camera_transport_pub_.publish(*img, *ci);
         }
       }
     }
