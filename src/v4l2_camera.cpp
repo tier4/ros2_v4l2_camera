@@ -236,7 +236,7 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
   } else if (param.get_name() == "output_encoding") {
     output_encoding_ = param.as_string();
     return true;
-  } else if (param.get_name() == "size") {
+  } else if (param.get_name() == "image_size") {
     camera_->stop();
     auto success = requestImageSize(param.as_integer_array());
     camera_->start();
