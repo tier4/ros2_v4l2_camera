@@ -52,10 +52,6 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     return;
   }
 
-  // Request pixel format
-  auto pixel_format = declare_parameter<std::string>("pixel_format", "YUYV");
-  requestPixelFormat(pixel_format);
-
   cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
 
   // Read parameters and set up callback
@@ -132,13 +128,29 @@ void V4L2Camera::createParameters()
   camera_frame_id_ = declare_parameter<std::string>("camera_frame_id", "camera");
 
   // Format parameters
+  // Pixel format
+  auto const & image_formats = camera_->getImageFormats();
+  auto pixel_format_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
+  auto pixel_format_constraints = std::ostringstream{};
+  for (auto const & format : image_formats) {
+    pixel_format_constraints <<
+      "'" << FourCC::toString(format.pixelFormat) << "'" <<
+      " (" << format.description << "), ";
+  }
+  auto str = pixel_format_constraints.str();
+  str = str.substr(0, str.size() - 2);
+  pixel_format_descriptor.additional_constraints = str;
+  auto pixel_format =
+    declare_parameter<std::string>("pixel_format", "YUYV", pixel_format_descriptor);
+  requestPixelFormat(pixel_format);
+
+  // Image size
   using ImageSize = std::vector<int64_t>;
   auto image_size = ImageSize{};
   auto image_size_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
   image_size_descriptor.name = "image_size";
   image_size_descriptor.description = "Image width & height";
   // List available image sizes per format
-  auto const & image_formats = camera_->getImageFormats();
   auto const & image_sizes = camera_->getImageSizes();
   auto image_sizes_constraints = std::ostringstream{};
   image_sizes_constraints << "Available image sizes:";
@@ -190,7 +202,6 @@ void V4L2Camera::createParameters()
         }
       case ControlType::MENU:
         {
-          // TODO(sander): treating as integer parameter, implement full menu functionality
           auto sstr = std::ostringstream{};
           for (auto const & o : c.menuItems) {
             sstr << o.first << " - " << o.second << ", ";
