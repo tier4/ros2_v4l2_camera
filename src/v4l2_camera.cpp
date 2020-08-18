@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "v4l2_camera/v4l2_camera.hpp"
+#include "v4l2_camera/fourcc.hpp"
 
 #include <sensor_msgs/image_encodings.hpp>
 
@@ -127,7 +128,23 @@ void V4L2Camera::createParameters()
   // Format parameters
   using ImageSize = std::vector<int64_t>;
   auto image_size = ImageSize{};
-  image_size = declare_parameter<ImageSize>("image_size", {640, 480});
+  auto image_size_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
+  image_size_descriptor.name = "image_size";
+  image_size_descriptor.description = "Image width & height";
+  // List available image sizes per format
+  auto const & image_formats = camera_->getImageFormats();
+  auto const & image_sizes = camera_->getImageSizes();
+  auto image_sizes_constraints = std::ostringstream{};
+  image_sizes_constraints << "Available image sizes:";
+  for (auto const & format : image_formats) {
+    image_sizes_constraints << "\n" << FourCC::toString(format.pixelFormat) << " (" <<
+      format.description << ")";
+    for (auto const & image_size : image_sizes.at(format.pixelFormat)) {
+      image_sizes_constraints << "\n\t" << image_size.first << "x" << image_size.second;
+    }
+  }
+  image_size_descriptor.additional_constraints = image_sizes_constraints.str();
+  image_size = declare_parameter<ImageSize>("image_size", {640, 480}, image_size_descriptor);
   requestImageSize(image_size);
 
   // Control parameters
