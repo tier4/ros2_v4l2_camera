@@ -19,6 +19,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "v4l2_camera/control.hpp"

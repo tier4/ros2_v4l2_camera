@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "v4l2_camera/v4l2_camera.hpp"
-#include "v4l2_camera/fourcc.hpp"
 
 #include <sensor_msgs/image_encodings.hpp>
 
@@ -22,6 +21,8 @@
 #include <utility>
 #include <vector>
 #include <algorithm>
+
+#include "v4l2_camera/fourcc.hpp"
 
 #include "rclcpp_components/register_node_macro.hpp"
 
