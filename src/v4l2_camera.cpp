@@ -72,6 +72,12 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       while (rclcpp::ok() && !canceled_.load()) {
         RCLCPP_DEBUG(get_logger(), "Capture...");
         auto img = camera_->capture();
+        if (img == nullptr) {
+          // Failed capturing image, assume it is temporarily and continue a bit later
+          std::this_thread::sleep_for(std::chrono::milliseconds(10));
+          continue;
+        }
+
         auto stamp = now();
         if (img->encoding != output_encoding_) {
           img = convert(*img);
