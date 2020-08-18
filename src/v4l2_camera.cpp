@@ -143,23 +143,38 @@ void V4L2Camera::createParameters()
 
   for (auto const & c : camera_->getControls()) {
     auto name = toParamName(c.name);
+    auto descriptor = rcl_interfaces::msg::ParameterDescriptor{};
+    descriptor.name = name;
+    descriptor.description = c.name;
     switch (c.type) {
       case ControlType::INT:
         {
-          auto value = declare_parameter<int64_t>(name, camera_->getControlValue(c.id));
+          auto current_value = camera_->getControlValue(c.id);
+          auto range = rcl_interfaces::msg::IntegerRange{};
+          range.from_value = c.minimum;
+          range.to_value = c.maximum;
+          descriptor.integer_range.push_back(range);
+          auto value = declare_parameter<int64_t>(name, current_value, descriptor);
           camera_->setControlValue(c.id, value);
           break;
         }
       case ControlType::BOOL:
         {
-          auto value = declare_parameter<bool>(name, camera_->getControlValue(c.id) != 0);
+          auto value =
+            declare_parameter<bool>(name, camera_->getControlValue(c.id) != 0, descriptor);
           camera_->setControlValue(c.id, value);
           break;
         }
       case ControlType::MENU:
         {
           // TODO(sander): treating as integer parameter, implement full menu functionality
-          auto value = declare_parameter<int64_t>(name, camera_->getControlValue(c.id));
+          auto sstr = std::ostringstream{};
+          for (auto const & o : c.menuItems) {
+            sstr << o.first << " - " << o.second << ", ";
+          }
+          auto str = sstr.str();
+          descriptor.additional_constraints = str.substr(0, str.size() - 2);
+          auto value = declare_parameter<int64_t>(name, camera_->getControlValue(c.id), descriptor);
           camera_->setControlValue(c.id, value);
           break;
         }
