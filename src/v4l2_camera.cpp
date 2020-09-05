@@ -132,10 +132,12 @@ void V4L2Camera::createParameters()
   // Pixel format
   auto const & image_formats = camera_->getImageFormats();
   auto pixel_format_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
+  pixel_format_descriptor.name = "pixel_format";
+  pixel_format_descriptor.description = "Pixel format (FourCC)";
   auto pixel_format_constraints = std::ostringstream{};
   for (auto const & format : image_formats) {
     pixel_format_constraints <<
-      "'" << FourCC::toString(format.pixelFormat) << "'" <<
+      "\"" << FourCC::toString(format.pixelFormat) << "\"" <<
       " (" << format.description << "), ";
   }
   auto str = pixel_format_constraints.str();
@@ -217,7 +219,7 @@ void V4L2Camera::createParameters()
         RCLCPP_WARN(
           get_logger(),
           std::string{"Control type not currently supported: "} + std::to_string(unsigned(c.type)) +
-          ", for controle: " + c.name);
+          ", for control: " + c.name);
         continue;
     }
     control_name_to_id_[name] = c.id;
@@ -254,6 +256,11 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
   } else if (param.get_name() == "output_encoding") {
     output_encoding_ = param.as_string();
     return true;
+  } else if (param.get_name() == "pixel_format") {
+    camera_->stop();
+    auto success = requestPixelFormat(param.as_string());
+    camera_->start();
+    return success;
   } else if (param.get_name() == "image_size") {
     camera_->stop();
     auto success = requestImageSize(param.as_integer_array());
