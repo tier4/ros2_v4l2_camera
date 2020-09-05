@@ -135,7 +135,7 @@ void V4L2Camera::createParameters()
   auto pixel_format_constraints = std::ostringstream{};
   for (auto const & format : image_formats) {
     pixel_format_constraints <<
-      "'" << FourCC::toString(format.pixelFormat) << "'" <<
+      "\"" << FourCC::toString(format.pixelFormat) << "\"" <<
       " (" << format.description << "), ";
   }
   auto str = pixel_format_constraints.str();
@@ -217,7 +217,7 @@ void V4L2Camera::createParameters()
         RCLCPP_WARN(
           get_logger(),
           std::string{"Control type not currently supported: "} + std::to_string(unsigned(c.type)) +
-          ", for controle: " + c.name);
+          ", for control: " + c.name);
         continue;
     }
     control_name_to_id_[name] = c.id;
