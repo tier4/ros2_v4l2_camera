@@ -7,9 +7,6 @@ build:
   stage: build
   script:
     - apt update
-    - apt install python3-pip -y
-    # Install dependencies
-    - pip3 install -U pytest colcon-common-extensions colcon-test-result
     - cd ${CI_BUILDS_DIR}
     - rosdep update && rosdep install --from-paths src -r -y
     # Build
