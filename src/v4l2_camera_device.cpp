@@ -91,6 +91,7 @@ bool V4l2CameraDevice::open()
 
   // List all available image formats and controls
   listImageFormats();
+  listImageSizes();
   listControls();
 
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available pixel formats: ");
@@ -292,10 +293,41 @@ void V4l2CameraDevice::listImageFormats()
   struct v4l2_fmtdesc fmtDesc;
   fmtDesc.index = 0;
   fmtDesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
   while (ioctl(fd_, VIDIOC_ENUM_FMT, &fmtDesc) == 0) {
     image_formats_.emplace_back(fmtDesc);
     fmtDesc.index++;
+  }
+}
+
+void V4l2CameraDevice::listImageSizes()
+{
+  image_sizes_.clear();
+  struct v4l2_frmsizeenum frmSizeEnum;
+  for (auto const & f : image_formats_) {
+    auto sizes = std::vector<std::pair<uint32_t, uint32_t>>{};
+
+    frmSizeEnum.index = 0;
+    frmSizeEnum.pixel_format = f.pixelFormat;
+
+    if (-1 == ioctl(fd_, VIDIOC_ENUM_FRAMESIZES, &frmSizeEnum)) {
+      RCLCPP_ERROR_STREAM(
+        rclcpp::get_logger("v4l2_camera"),
+        "Failed listing frame size " << strerror(errno) << " (" << errno << ")");
+      continue;
+    }
+    if (frmSizeEnum.type != V4L2_FRMSIZE_TYPE_DISCRETE) {
+      RCLCPP_ERROR_STREAM(
+        rclcpp::get_logger("v4l2_camera"),
+        "Frame size type not supported: " << strerror(errno));
+      continue;
+    }
+
+    do {
+      sizes.emplace_back(std::make_pair(frmSizeEnum.discrete.width, frmSizeEnum.discrete.height));
+      frmSizeEnum.index++;
+    } while (ioctl(fd_, VIDIOC_ENUM_FRAMESIZES, &frmSizeEnum) == 0);
+
+    image_sizes_[f.pixelFormat] = sizes;
   }
 }
 

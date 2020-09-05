@@ -19,6 +19,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "v4l2_camera/control.hpp"
@@ -43,6 +44,8 @@ public:
   int32_t getControlValue(uint32_t id);
   bool setControlValue(uint32_t id, int32_t value);
 
+  auto const & getImageFormats() const {return image_formats_;}
+  auto const & getImageSizes() const {return image_sizes_;}
   auto const & getCurrentDataFormat() const {return cur_data_format_;}
   bool requestDataFormat(PixelFormat const & format);
 
@@ -64,6 +67,7 @@ private:
 
   v4l2_capability capabilities_;
   std::vector<ImageFormat> image_formats_;
+  std::map<unsigned, std::vector<std::pair<uint32_t, uint32_t>>> image_sizes_;
   std::vector<Control> controls_;
 
   PixelFormat cur_data_format_;
@@ -72,6 +76,9 @@ private:
 
   // Requests and stores all formats available for this camera
   void listImageFormats();
+
+  // Requests and stores all frame sizes available for this camera
+  void listImageSizes();
 
   // Requests and stores all controls available for this camera
   void listControls();
