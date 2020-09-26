@@ -2,6 +2,13 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Publishing is done on private topics to enable remapping of the namespace
+* CameraInfo is published in intra-process communication mode
+* Added parameter descriptions
+* Contributors: Christian Rauch, Marcus M. Scheunemann, Sander G. van Dijk
+
 0.2.1 (2020-08-06)
 ------------------
 * Hold reference to parameters callback handle
