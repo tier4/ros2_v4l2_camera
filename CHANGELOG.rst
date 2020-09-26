@@ -2,8 +2,8 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2020-09-26)
+------------------
 * Publishing is done on private topics to enable remapping of the namespace
 * CameraInfo is published in intra-process communication mode
 * Added parameter descriptions
