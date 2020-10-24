@@ -319,18 +319,22 @@ void V4l2CameraDevice::listImageSizes()
       case V4L2_FRMSIZE_TYPE_DISCRETE:
         image_sizes_[f.pixelFormat] = listDiscreteImageSizes(frmSizeEnum);
         break;
-
+      case V4L2_FRMSIZE_TYPE_STEPWISE:
+        image_sizes_[f.pixelFormat] = listStepwiseImageSizes(frmSizeEnum);
+        break;
+      case V4L2_FRMSIZE_TYPE_CONTINUOUS:
+        image_sizes_[f.pixelFormat] = listContinuousImageSizes(frmSizeEnum);
+        break;
       default:
         RCLCPP_WARN_STREAM(
           rclcpp::get_logger("v4l2_camera"),
           "Frame size type not supported: " << frmSizeEnum.type);
         continue;
     }
-
   }
 }
 
-V4l2CameraDevice::ImageSizesVector V4l2CameraDevice::listDiscreteImageSizes(
+V4l2CameraDevice::ImageSizesDescription V4l2CameraDevice::listDiscreteImageSizes(
   v4l2_frmsizeenum frm_size_enum)
 {
   auto sizes = ImageSizesVector{};
@@ -340,7 +344,30 @@ V4l2CameraDevice::ImageSizesVector V4l2CameraDevice::listDiscreteImageSizes(
     frm_size_enum.index++;
   } while (ioctl(fd_, VIDIOC_ENUM_FRAMESIZES, &frm_size_enum) == 0);
 
-  return sizes;
+  return std::make_pair(ImageSizeType::DISCRETE, std::move(sizes));
+}
+
+V4l2CameraDevice::ImageSizesDescription V4l2CameraDevice::listStepwiseImageSizes(
+  v4l2_frmsizeenum frm_size_enum)
+{
+  // Three entries: min size, max size and stepsize
+  auto sizes = ImageSizesVector(3);
+  sizes[0] = std::make_pair(frm_size_enum.stepwise.min_width, frm_size_enum.stepwise.min_height);
+  sizes[1] = std::make_pair(frm_size_enum.stepwise.max_width, frm_size_enum.stepwise.max_height);
+  sizes[2] = std::make_pair(frm_size_enum.stepwise.step_width, frm_size_enum.stepwise.step_height);
+
+  return std::make_pair(ImageSizeType::STEPWISE, std::move(sizes));
+}
+
+V4l2CameraDevice::ImageSizesDescription V4l2CameraDevice::listContinuousImageSizes(
+  v4l2_frmsizeenum frm_size_enum)
+{
+  // Two entries: min size and max size, stepsize is implicitly 1
+  auto sizes = ImageSizesVector(2);
+  sizes[0] = std::make_pair(frm_size_enum.stepwise.min_width, frm_size_enum.stepwise.min_height);
+  sizes[1] = std::make_pair(frm_size_enum.stepwise.max_width, frm_size_enum.stepwise.max_height);
+
+  return std::make_pair(ImageSizeType::CONTINUOUS, std::move(sizes));
 }
 
 void V4l2CameraDevice::listControls()

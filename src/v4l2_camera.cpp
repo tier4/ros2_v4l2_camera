@@ -153,17 +153,44 @@ void V4L2Camera::createParameters()
   auto image_size_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
   image_size_descriptor.name = "image_size";
   image_size_descriptor.description = "Image width & height";
+
   // List available image sizes per format
   auto const & image_sizes = camera_->getImageSizes();
   auto image_sizes_constraints = std::ostringstream{};
   image_sizes_constraints << "Available image sizes:";
+
   for (auto const & format : image_formats) {
     image_sizes_constraints << "\n" << FourCC::toString(format.pixelFormat) << " (" <<
       format.description << ")";
-    for (auto const & image_size : image_sizes.at(format.pixelFormat)) {
-      image_sizes_constraints << "\n\t" << image_size.first << "x" << image_size.second;
+
+    auto iter = image_sizes.find(format.pixelFormat);
+    if (iter == image_sizes.end()) {
+      RCLCPP_ERROR_STREAM(
+        get_logger(),
+        "No sizes available to create parameter description for format: " << format.description);
+      continue;
+    }
+
+    auto size_type = iter->second.first;
+    auto & sizes = iter->second.second;
+    switch (size_type) {
+      case V4l2CameraDevice::ImageSizeType::DISCRETE:
+        for (auto const & image_size : sizes) {
+          image_sizes_constraints << "\n\t" << image_size.first << "x" << image_size.second;
+        }
+        break;
+      case V4l2CameraDevice::ImageSizeType::STEPWISE:
+        image_sizes_constraints << "\n\tmin:\t" << sizes[0].first << "x" << sizes[0].second;
+        image_sizes_constraints << "\n\tmax:\t" << sizes[1].first << "x" << sizes[1].second;
+        image_sizes_constraints << "\n\tstep:\t" << sizes[2].first << "x" << sizes[2].second;
+        break;
+      case V4l2CameraDevice::ImageSizeType::CONTINUOUS:
+        image_sizes_constraints << "\n\tmin:\t" << sizes[0].first << "x" << sizes[0].second;
+        image_sizes_constraints << "\n\tmax:\t" << sizes[1].first << "x" << sizes[1].second;
+        break;
     }
   }
+
   image_size_descriptor.additional_constraints = image_sizes_constraints.str();
   image_size = declare_parameter<ImageSize>("image_size", {640, 480}, image_size_descriptor);
   requestImageSize(image_size);
