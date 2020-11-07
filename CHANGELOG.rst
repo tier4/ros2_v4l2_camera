@@ -2,8 +2,8 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.1 (2020-11-07)
+------------------
 * Handle non discrete frame sizes; fixes support for Raspberry Pi + Camera Module
 * Contributors: Sander G. van Dijk
 
