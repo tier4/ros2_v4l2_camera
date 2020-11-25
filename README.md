@@ -2,6 +2,31 @@
 
 A ROS 2 camera driver using Video4Linux2 (V4L2).
 
+## Installation
+[This article](https://medium.com/swlh/raspberry-pi-ros-2-camera-eef8f8b94304) details how to build and run this package. It focuses on Raspberry Pi OS with the Raspberry Pi Camera Module V2 but should generalise for most systems.
+
+### ROS package install
+This is available from the ROS package repositories and can therefore be installed with the following command and your ROS version name:
+
+    apt-get install ros-<ros_version>-v4l2-camera
+
+### Building from source
+If you need to modify the code or ensure you have the latest update you will need to clone this repo then build the package.
+
+    $ git clone --branch foxy https://gitlab.com/boldhearts/ros2_v4l2_camera.git src/v4l2_camera
+    $ colcon build
+
+Most users will also want to set up compressed transport using the dependencies below.
+
+### Usage
+Publish camera images, using the default parameters:
+
+        ros2 run v4l2_camera v4l2_camera_node
+
+Preview the image (open another terminal):
+
+        ros2 run rqt_image_view rqt_image_view
+
 ## Dependencies
 
 * `image_transport` - makes it possible to set up compressed transport
@@ -41,11 +66,13 @@ publishes images as `sensor_msgs/Image` messages.
     character '[FOURCC](http://fourcc.org/)' code [supported by
     V4L2](https://linuxtv.org/downloads/v4l-dvb-apis/uapi/v4l/videodev.html)
     and by your camera. The node outputs the available formats
-    supported by your camera when started.
+    supported by your camera when started.  
+    Currently supported: `"YUYV"` or `"GREY"`
 
 * `output_encoding` - `string`, default: `"rgb8"`
 
-    The encoding to use for the output image. Currently supported: "rgb8" or "yuv422".
+    The encoding to use for the output image.  
+    Currently supported: `"rgb8"`, `"yuv422"` or `"mono8"`.
 
 * `image_size` - `integer_array`, default: `[640, 480]`
 
