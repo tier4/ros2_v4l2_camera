@@ -46,7 +46,10 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   }
 
   // Prepare camera
-  auto device = declare_parameter<std::string>("video_device", "/dev/video0");
+  auto device_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
+  device_descriptor.description = "Path to video device";
+  device_descriptor.read_only = true;
+  auto device = declare_parameter<std::string>("video_device", "/dev/video0", device_descriptor);
   camera_ = std::make_shared<V4l2CameraDevice>(device);
 
   if (!camera_->open()) {
@@ -114,7 +117,13 @@ V4L2Camera::~V4L2Camera()
 void V4L2Camera::createParameters()
 {
   // Node parameters
-  output_encoding_ = declare_parameter("output_encoding", std::string{"rgb8"});
+  auto output_encoding_description = rcl_interfaces::msg::ParameterDescriptor{};
+  output_encoding_description.description = "ROS image encoding to use for the output image";
+  output_encoding_description.additional_constraints =
+    "Currently supported: 'rgb8', 'yuv422' or 'mono'";
+  output_encoding_ = declare_parameter(
+    "output_encoding", std::string{"rgb8"},
+    output_encoding_description);
 
   // Camera info parameters
   auto camera_info_url = std::string{};
@@ -126,7 +135,12 @@ void V4L2Camera::createParameters()
     }
   }
 
-  camera_frame_id_ = declare_parameter<std::string>("camera_frame_id", "camera");
+  auto camera_frame_id_description = rcl_interfaces::msg::ParameterDescriptor{};
+  camera_frame_id_description.description = "Frame id inserted in published image";
+  camera_frame_id_description.read_only = true;
+  camera_frame_id_ = declare_parameter<std::string>(
+    "camera_frame_id", "camera",
+    camera_frame_id_description);
 
   // Format parameters
   // Pixel format
