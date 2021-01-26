@@ -87,7 +87,8 @@ bool V4l2CameraDevice::open()
   RCLCPP_INFO(
     rclcpp::get_logger("v4l2_camera"),
     "Current pixel format: %s @ %sx%s", FourCC::toString(cur_data_format_.pixelFormat).c_str(),
-    std::to_string(cur_data_format_.width).c_str(), std::to_string(cur_data_format_.height).c_str());
+    std::to_string(cur_data_format_.width).c_str(),
+    std::to_string(cur_data_format_.height).c_str());
 
   // List all available image formats and controls
   listImageFormats();
@@ -105,7 +106,8 @@ bool V4l2CameraDevice::open()
   for (auto const & control : controls_) {
     RCLCPP_INFO(
       rclcpp::get_logger("v4l2_camera"),
-      "  %s (%s) = %s", control.name.c_str(), std::to_string(static_cast<unsigned>(control.type)).c_str(),
+      "  %s (%s) = %s", control.name.c_str(),
+      std::to_string(static_cast<unsigned>(control.type)).c_str(),
       std::to_string(getControlValue(control.id)).c_str());
   }
 
@@ -271,7 +273,8 @@ bool V4l2CameraDevice::requestDataFormat(const PixelFormat & format)
 
   RCLCPP_INFO(
     rclcpp::get_logger("v4l2_camera"),
-    "Requesting format: %sx%s", std::to_string(format.width).c_str(), std::to_string(format.height).c_str());
+    "Requesting format: %sx%s", std::to_string(format.width).c_str(),
+    std::to_string(format.height).c_str());
 
   // Perform request
   if (-1 == ioctl(fd_, VIDIOC_S_FMT, &formatReq)) {

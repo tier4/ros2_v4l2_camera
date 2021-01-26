@@ -245,7 +245,8 @@ void V4L2Camera::createParameters()
       default:
         RCLCPP_WARN(
           get_logger(),
-          "Control type not currently supported: %s, for control: %s", std::to_string(unsigned(c.type)).c_str(),
+          "Control type not currently supported: %s, for control: %s",
+          std::to_string(unsigned(c.type)).c_str(),
           c.name.c_str());
         continue;
     }
@@ -329,7 +330,8 @@ bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
   if (size.size() != 2) {
     RCLCPP_WARN(
       get_logger(),
-      "Invalid image size; expected dimensions: 2, actual: %s", std::to_string(size.size()).c_str());
+      "Invalid image size; expected dimensions: 2, actual: %s",
+      std::to_string(size.size()).c_str());
     return false;
   }
 
