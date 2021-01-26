@@ -29,7 +29,7 @@ public:
       [this](sensor_msgs::msg::Image::UniquePtr img) {
         std::stringstream ss;
         ss << "Image message address [RECEIVE]:\t" << img.get();
-        RCLCPP_DEBUG(get_logger(), ss.str());
+        RCLCPP_DEBUG(get_logger(), "%s", ss.str().c_str());
       });
   }
 
