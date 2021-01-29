@@ -2,6 +2,14 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Read-only parameters as now properly marked as such
+* Use C-style strings for logging macros to adapt to new formatting constraints
+  See: https://index.ros.org/doc/ros2/Releases/Release-Galactic-Geochelone/#change-in-rclcpp-s-logging-macros
+* Add support monochrome cameras
+* Contributors: Chris Lalancette, Sander G. van Dijk, nfry321
+
 0.3.1 (2020-11-07)
 ------------------
 * Handle non discrete frame sizes; fixes support for Raspberry Pi + Camera Module
