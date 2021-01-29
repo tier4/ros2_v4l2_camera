@@ -2,8 +2,8 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.4.0 (2021-01-29)
+------------------
 * Read-only parameters as now properly marked as such
 * Use C-style strings for logging macros to adapt to new formatting constraints
   See: https://index.ros.org/doc/ros2/Releases/Release-Galactic-Geochelone/#change-in-rclcpp-s-logging-macros
