@@ -59,6 +59,20 @@ public:
   auto const & getCurrentDataFormat() const {return cur_data_format_;}
   bool requestDataFormat(PixelFormat const & format);
 
+  bool timePerFrameSupported() const
+  {
+    return (capture_parm_.capability & V4L2_CAP_TIMEPERFRAME) != 0;
+  }
+
+  auto getCurrentTimePerFrame() const
+  {
+    return std::make_pair(
+      capture_parm_.timeperframe.numerator,
+      capture_parm_.timeperframe.denominator);
+  }
+
+  bool requestTimePerFrame(std::pair<uint32_t, uint32_t> tpf);
+
   std::string getCameraName();
 
   sensor_msgs::msg::Image::UniquePtr capture();
@@ -76,6 +90,8 @@ private:
   int fd_;
 
   v4l2_capability capabilities_;
+  v4l2_captureparm capture_parm_;
+
   std::vector<ImageFormat> image_formats_;
   std::map<unsigned, ImageSizesDescription> image_sizes_;
   std::vector<Control> controls_;
@@ -83,6 +99,8 @@ private:
   PixelFormat cur_data_format_;
 
   std::vector<Buffer> buffers_;
+
+  void getCaptureParameters();
 
   // Requests and stores all formats available for this camera
   void listImageFormats();

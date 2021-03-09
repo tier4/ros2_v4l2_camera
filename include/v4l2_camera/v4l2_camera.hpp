@@ -41,6 +41,9 @@ public:
   virtual ~V4L2Camera();
 
 private:
+  using ImageSize = std::vector<int64_t>;
+  using TimePerFrame = std::vector<int64_t>;
+
   std::shared_ptr<V4l2CameraDevice> camera_;
 
   // Publisher used for intra process comm
@@ -66,7 +69,9 @@ private:
   bool handleParameter(rclcpp::Parameter const & param);
 
   bool requestPixelFormat(std::string const & fourcc);
-  bool requestImageSize(std::vector<int64_t> const & size);
+  bool requestImageSize(ImageSize const & size);
+
+  bool requestTimePerFrame(TimePerFrame const & timePerFrame);
 
   sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
 

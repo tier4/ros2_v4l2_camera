@@ -90,11 +90,13 @@ bool V4l2CameraDevice::open()
     std::to_string(cur_data_format_.width).c_str(),
     std::to_string(cur_data_format_.height).c_str());
 
-  // List all available image formats and controls
+  // List all available image formats, controls and capture parameters
   listImageFormats();
   listImageSizes();
   listControls();
+  getCaptureParameters();
 
+  // Log results
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available pixel formats: ");
   for (auto const & format : image_formats_) {
     RCLCPP_INFO(
@@ -109,6 +111,18 @@ bool V4l2CameraDevice::open()
       "  %s (%s) = %s", control.name.c_str(),
       std::to_string(static_cast<unsigned>(control.type)).c_str(),
       std::to_string(getControlValue(control.id)).c_str());
+  }
+
+  if (timePerFrameSupported()) {
+    RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Time-per-frame support: YES");
+    RCLCPP_INFO(
+      rclcpp::get_logger("v4l2_camera"),
+      "  Current time per frame: %d/%d s",
+      capture_parm_.timeperframe.numerator,
+      capture_parm_.timeperframe.denominator);
+  } else {
+    RCLCPP_INFO(
+      rclcpp::get_logger("v4l2_camera"), "Time-per-frame support: NO");
   }
 
   return true;
@@ -288,6 +302,60 @@ bool V4l2CameraDevice::requestDataFormat(const PixelFormat & format)
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Success");
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
   return true;
+}
+
+bool V4l2CameraDevice::requestTimePerFrame(std::pair<uint32_t, uint32_t> tpf)
+{
+  if (!timePerFrameSupported()) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("v4l2_camera"),
+      "Device does not support setting time per frame");
+    return false;
+  }
+
+  auto parmReq = v4l2_streamparm{};
+  parmReq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+  parmReq.parm.capture = capture_parm_;
+  parmReq.parm.capture.timeperframe.numerator = tpf.first;
+  parmReq.parm.capture.timeperframe.denominator = tpf.second;
+
+  // Perform request
+  if (-1 == ioctl(fd_, VIDIOC_S_PARM, &parmReq)) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("v4l2_camera"),
+      "Failed requesting time per frame: %s (%s)", strerror(errno),
+      std::to_string(errno).c_str());
+    return false;
+  }
+
+  if (parmReq.parm.capture.timeperframe.numerator != tpf.first ||
+    parmReq.parm.capture.timeperframe.denominator != tpf.second)
+  {
+    RCLCPP_WARN(
+      rclcpp::get_logger("v4l2_camera"),
+      "Requesting time per frame succeeded, but driver overwrote value: %d/%d",
+      parmReq.parm.capture.timeperframe.numerator,
+      parmReq.parm.capture.timeperframe.denominator);
+    return false;
+  }
+
+  return true;
+}
+
+void V4l2CameraDevice::getCaptureParameters()
+{
+  struct v4l2_streamparm streamParm;
+  streamParm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  if (-1 == ioctl(fd_, VIDIOC_G_PARM, &streamParm)) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("v4l2_camera"),
+      "Failed requesting streaming parameters: %s (%s)", strerror(errno),
+      std::to_string(errno).c_str());
+    return;
+  }
+
+  capture_parm_ = streamParm.parm.capture;
 }
 
 void V4l2CameraDevice::listImageFormats()
