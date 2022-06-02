@@ -20,6 +20,7 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <tuple>
 #include <vector>
 
 #include "v4l2_camera/control.hpp"
@@ -51,11 +52,16 @@ public:
     STEPWISE,
     CONTINUOUS
   };
+
+  // Sizes are in width/height order
   using ImageSizesVector = std::vector<std::pair<uint16_t, uint16_t>>;
   using ImageSizesDescription = std::pair<ImageSizeType, ImageSizesVector>;
+  // Interval in seconds described by ration of numerator (first) and denominator (second)
+  using FrameIntervalsVector = std::vector<std::pair<uint32_t, uint32_t>>;
 
   auto const & getImageFormats() const {return image_formats_;}
   auto const & getImageSizes() const {return image_sizes_;}
+  auto const & getFrameIntervals() const {return frame_intervals_;}
   auto const & getCurrentDataFormat() const {return cur_data_format_;}
   bool requestDataFormat(PixelFormat const & format);
 
@@ -93,7 +99,11 @@ private:
   v4l2_captureparm capture_parm_;
 
   std::vector<ImageFormat> image_formats_;
+  // Keyed by ImageFormat::pixelFormat
   std::map<unsigned, ImageSizesDescription> image_sizes_;
+  // Keyed by ImageFormat::pixelFormat, width and height
+  std::map<std::tuple<unsigned, uint16_t, uint16_t>, FrameIntervalsVector> frame_intervals_;
+
   std::vector<Control> controls_;
 
   PixelFormat cur_data_format_;
@@ -111,6 +121,9 @@ private:
   ImageSizesDescription listDiscreteImageSizes(v4l2_frmsizeenum frm_size_enum);
   ImageSizesDescription listStepwiseImageSizes(v4l2_frmsizeenum frm_size_enum);
   ImageSizesDescription listContinuousImageSizes(v4l2_frmsizeenum frm_size_enum);
+
+  // Requests and stores all frame intervals
+  void listFrameIntervals();
 
   // Requests and stores all controls available for this camera
   void listControls();

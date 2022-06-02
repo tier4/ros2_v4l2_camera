@@ -90,11 +90,12 @@ bool V4l2CameraDevice::open()
     std::to_string(cur_data_format_.width).c_str(),
     std::to_string(cur_data_format_.height).c_str());
 
-  // List all available image formats, controls and capture parameters
+  // List all available image formats, sizes, intervals, controls and capture parameters
+  getCaptureParameters();
   listImageFormats();
   listImageSizes();
+  listFrameIntervals();
   listControls();
-  getCaptureParameters();
 
   // Log results
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available pixel formats: ");
@@ -120,6 +121,17 @@ bool V4l2CameraDevice::open()
       "  Current time per frame: %d/%d s",
       capture_parm_.timeperframe.numerator,
       capture_parm_.timeperframe.denominator);
+
+    RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "  Available intervals:");
+    for (auto const & kv : frame_intervals_) {
+      auto oss = std::ostringstream{};
+      oss << FourCC::toString(std::get<0>(kv.first)) << " " << std::get<1>(kv.first) << "x" <<
+        std::get<2>(kv.first) << ":";
+      for (auto const & i : kv.second) {
+        oss << " " << i.first << "/" << i.second;
+      }
+      RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "    %s", oss.str().c_str());
+    }
   } else {
     RCLCPP_INFO(
       rclcpp::get_logger("v4l2_camera"), "Time-per-frame support: NO");
@@ -440,6 +452,66 @@ V4l2CameraDevice::ImageSizesDescription V4l2CameraDevice::listContinuousImageSiz
   sizes[1] = std::make_pair(frm_size_enum.stepwise.max_width, frm_size_enum.stepwise.max_height);
 
   return std::make_pair(ImageSizeType::CONTINUOUS, std::move(sizes));
+}
+
+void V4l2CameraDevice::listFrameIntervals()
+{
+  if (!timePerFrameSupported()) {
+    RCLCPP_WARN(
+      rclcpp::get_logger(
+        "v4l2_camera"), "Time per frame not supported, cannot list intervals");
+    return;
+  }
+
+  frame_intervals_.clear();
+  struct v4l2_frmivalenum frmIvalEnum;
+  // Supported intervals can be different per format and image size
+  for (auto const & f : image_formats_) {
+    auto sd = image_sizes_[f.pixelFormat];
+    switch (sd.first) {
+      case ImageSizeType::DISCRETE:
+
+        for (auto const & s : sd.second) {
+          frmIvalEnum.index = 0;
+          frmIvalEnum.pixel_format = f.pixelFormat;
+          frmIvalEnum.width = s.first;
+          frmIvalEnum.height = s.second;
+
+          if (-1 == ioctl(fd_, VIDIOC_ENUM_FRAMEINTERVALS, &frmIvalEnum)) {
+            RCLCPP_ERROR_STREAM(
+              rclcpp::get_logger("v4l2_camera"),
+              "Failed listing frame interval " << strerror(errno) << " (" << errno << ")");
+            continue;
+          }
+
+          if (frmIvalEnum.type != V4L2_FRMIVAL_TYPE_DISCRETE) {
+            RCLCPP_WARN(
+              rclcpp::get_logger("v4l2_camera"),
+              "Listing of non-discrete frame intervals is not currently supported");
+            continue;
+          }
+
+          auto intervals = FrameIntervalsVector{};
+          do {
+            intervals.emplace_back(
+              std::make_pair(
+                frmIvalEnum.discrete.numerator,
+                frmIvalEnum.discrete.denominator));
+            frmIvalEnum.index++;
+          } while (ioctl(fd_, VIDIOC_ENUM_FRAMEINTERVALS, &frmIvalEnum) == 0);
+
+          frame_intervals_[std::make_tuple(
+              f.pixelFormat, s.first,
+              s.second)] = std::move(intervals);
+        }
+        break;
+
+      default:
+        RCLCPP_WARN(
+          rclcpp::get_logger("v4l2_camera"),
+          "Listing of frame intervals for non-discrete image sizes is not currently supported");
+    }
+  }
 }
 
 void V4l2CameraDevice::listControls()
