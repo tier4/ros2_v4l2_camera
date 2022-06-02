@@ -378,10 +378,10 @@ void V4l2CameraDevice::listControls()
 {
   controls_.clear();
 
-  auto queryctrl = v4l2_queryctrl{};
+  auto queryctrl = v4l2_query_ext_ctrl{};
   queryctrl.id = V4L2_CID_USER_CLASS | V4L2_CTRL_FLAG_NEXT_CTRL;
 
-  while (ioctl(fd_, VIDIOC_QUERYCTRL, &queryctrl) == 0) {
+  while (ioctl(fd_, VIDIOC_QUERY_EXT_CTRL, &queryctrl) == 0) {
     // Ignore disabled controls
     if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED) {
       continue;
