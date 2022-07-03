@@ -82,7 +82,7 @@ publishes images as `sensor_msgs/Image` messages.
 
     The time between two successive frames. The expected value is a
     ratio defined by an array of 2 integers. For instance, a value of
-    `[1, 30]` sets a period of 1/30, and thus a framrate of 30hz.
+    `[1, 30]` sets a period of 1/30, and thus a framrate of 30Hz.
 
     If the provided period is not supported, the driver may choose
     another period near to it. In that case the parameter change is
