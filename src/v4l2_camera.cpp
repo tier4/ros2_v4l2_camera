@@ -162,7 +162,6 @@ void V4L2Camera::createParameters()
   requestPixelFormat(pixel_format);
 
   // Image size
-  using ImageSize = std::vector<int64_t>;
   auto image_size = ImageSize{};
   auto image_size_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
   image_size_descriptor.name = "image_size";
@@ -208,6 +207,20 @@ void V4L2Camera::createParameters()
   image_size_descriptor.additional_constraints = image_sizes_constraints.str();
   image_size = declare_parameter<ImageSize>("image_size", {640, 480}, image_size_descriptor);
   requestImageSize(image_size);
+
+  // Time per frame
+  if (camera_->timePerFrameSupported()) {
+    auto tpf = camera_->getCurrentTimePerFrame();
+    auto time_per_frame_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
+    time_per_frame_descriptor.name = "time_per_frame";
+    time_per_frame_descriptor.description = "Desired period between successive frames in seconds";
+    time_per_frame_descriptor.additional_constraints =
+      "Length 2 array, with numerator and denominator";
+    auto time_per_frame = declare_parameter<TimePerFrame>(
+      "time_per_frame", {tpf.first, tpf.second},
+      time_per_frame_descriptor);
+    requestTimePerFrame(time_per_frame);
+  }
 
   // Control parameters
   auto toParamName =
@@ -307,6 +320,11 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
     auto success = requestImageSize(param.as_integer_array());
     camera_->start();
     return success;
+  } else if (param.get_name() == "time_per_frame") {
+    camera_->stop();
+    auto success = requestTimePerFrame(param.as_integer_array());
+    camera_->start();
+    return success;
   } else if (param.get_name() == "camera_info_url") {
     auto camera_info_url = param.as_string();
     if (cinfo_->validateURL(camera_info_url)) {
@@ -344,8 +362,8 @@ bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
   if (size.size() != 2) {
     RCLCPP_WARN(
       get_logger(),
-      "Invalid image size; expected dimensions: 2, actual: %s",
-      std::to_string(size.size()).c_str());
+      "Invalid image size; expected dimensions: 2, actual: %d",
+      size.size());
     return false;
   }
 
@@ -358,6 +376,19 @@ bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
   dataFormat.width = size[0];
   dataFormat.height = size[1];
   return camera_->requestDataFormat(dataFormat);
+}
+
+bool V4L2Camera::requestTimePerFrame(TimePerFrame const & tpf)
+{
+  if (tpf.size() != 2) {
+    RCLCPP_WARN(
+      get_logger(),
+      "Invalid time per frame; expected dimensions: 2, actual: %d",
+      tpf.size());
+    return false;
+  }
+
+  return camera_->requestTimePerFrame(std::make_pair(tpf[0], tpf[1]));
 }
 
 static unsigned char CLIPVALUE(int val)
