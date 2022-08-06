@@ -2,6 +2,12 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add time_per_frame parameter to adjust frame rate
+* Fix: use 64 bit integers to store control valueas and ranges
+* Contributors: Marcus M. Scheunemann, Sander G. van Dijk
+
 0.4.0 (2021-01-29)
 ------------------
 * Read-only parameters as now properly marked as such
