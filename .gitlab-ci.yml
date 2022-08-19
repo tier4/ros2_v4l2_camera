@@ -1,4 +1,4 @@
-image: osrf/ros:foxy-desktop
+image: osrf/ros:galactic-desktop
 
 variables:
   GIT_CLONE_PATH: $CI_BUILDS_DIR/src/ros2_v4l2_camera
