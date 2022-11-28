@@ -22,10 +22,29 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camera_info_manager REQUIRED)
+find_package(CUDA)
 
-add_library(v4l2_camera
-  src/v4l2_camera.cpp
-  src/v4l2_camera_device.cpp)
+if (CUDA_FOUND)
+  message(STATUS "CUDA Support is enabled in ${PROJECT_NAME}")
+  cuda_add_library(v4l2_camera
+    src/v4l2_camera.cpp
+    src/v4l2_camera_device.cpp
+  )
+  target_compile_definitions(v4l2_camera PUBLIC
+    ENABLE_CUDA
+  )
+  target_include_directories(v4l2_camera PUBLIC
+    ${CUDA_INCLUDE_DIR}
+  )
+  target_link_libraries(v4l2_camera
+    ${CUDA_nppicc_LIBRARY}
+    ${CUDA_nppisu_LIBRARY}
+  )
+else()
+  add_library(v4l2_camera
+    src/v4l2_camera.cpp
+    src/v4l2_camera_device.cpp)
+endif()
 rclcpp_components_register_nodes(v4l2_camera "v4l2_camera::V4L2Camera")
 
 target_include_directories(v4l2_camera PUBLIC

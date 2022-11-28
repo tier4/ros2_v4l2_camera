@@ -16,6 +16,8 @@
 
 #include <sensor_msgs/image_encodings.hpp>
 
+#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <memory>
 #include <utility>
@@ -25,6 +27,12 @@
 #include "v4l2_camera/fourcc.hpp"
 
 #include "rclcpp_components/register_node_macro.hpp"
+#include "v4l2_camera/v4l2_camera_device.hpp"
+
+#ifdef ENABLE_CUDA
+#include <cuda.h>
+#include <nppi_color_conversion.h>
+#endif
 
 using namespace std::chrono_literals;
 
@@ -57,6 +65,10 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   }
 
   cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
+#ifdef ENABLE_CUDA
+  src_dev_ = std::allocate_shared<GPUMemoryManager>(allocator_);
+  dst_dev_ = std::allocate_shared<GPUMemoryManager>(allocator_);
+#endif
 
   // Read parameters and set up callback
   createParameters();
@@ -80,7 +92,11 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
         auto stamp = now();
         if (img->encoding != output_encoding_) {
+#ifdef ENABLE_CUDA
+          img = convertOnGpu(*img);
+#else
           img = convert(*img);
+#endif
         }
         img->header.stamp = stamp;
         img->header.frame_id = camera_frame_id_;
@@ -500,6 +516,59 @@ bool V4L2Camera::checkCameraInfo(
   return ci.width == img.width && ci.height == img.height;
 }
 
+#ifdef ENABLE_CUDA
+sensor_msgs::msg::Image::UniquePtr V4L2Camera::convertOnGpu(sensor_msgs::msg::Image const & img)
+{
+  if (img.encoding != sensor_msgs::image_encodings::YUV422 ||
+      output_encoding_ != sensor_msgs::image_encodings::RGB8) {
+    RCLCPP_WARN_ONCE(
+        get_logger(),
+        "Conversion not supported yet: %s -> %s", img.encoding.c_str(), output_encoding_.c_str());
+    return nullptr;
+  }
+
+  auto outImg = std::make_unique<sensor_msgs::msg::Image>();
+  outImg->width = img.width;
+  outImg->height = img.height;
+  outImg->step = img.width * 3;
+  outImg->encoding = output_encoding_;
+  outImg->data.resize(outImg->height * outImg->step);
+
+  src_dev_->Allocate(img.width, img.height);
+  dst_dev_->Allocate(outImg->width, outImg->height);
+
+  unsigned int src_num_channel = static_cast<int>(img.step / img.width);  // No padded input is assumed
+  cudaErrorCheck(cudaMemcpy2DAsync(static_cast<void*>(src_dev_->dev_ptr),
+                                   src_dev_->step_bytes,
+                                   static_cast<const void*>(img.data.data()),
+                                   img.step,  // in byte. including padding
+                                   img.width * src_num_channel * sizeof(Npp8u),  // in byte
+                                   img.height,                 // in pixel
+                                   cudaMemcpyHostToDevice));
+
+  NppiSize roi = {static_cast<int>(img.width), static_cast<int>(img.height)};
+  NppStatus res = nppiYUV422ToRGB_8u_C2C3R(src_dev_->dev_ptr,
+                                           src_dev_->step_bytes,
+                                           dst_dev_->dev_ptr,
+                                           dst_dev_->step_bytes,
+                                           roi);
+  if (res != NPP_SUCCESS) {
+    throw std::runtime_error{"NPPI operation failed"};
+  }
+
+  cudaErrorCheck(cudaMemcpy2DAsync(static_cast<void*>(outImg->data.data()),
+                                   outImg->step,
+                                   static_cast<const void*>(dst_dev_->dev_ptr),
+                                   dst_dev_->step_bytes,
+                                   outImg->width * 3 * sizeof(Npp8u),  // in byte. exclude padding
+                                   outImg->height,
+                                   cudaMemcpyDeviceToHost));
+
+  cudaErrorCheck(cudaDeviceSynchronize());
+
+  return outImg;
+}
+#endif
 }  // namespace v4l2_camera
 
 RCLCPP_COMPONENTS_REGISTER_NODE(v4l2_camera::V4L2Camera)

@@ -15,11 +15,13 @@
 #ifndef V4L2_CAMERA__V4L2_CAMERA_HPP_
 #define V4L2_CAMERA__V4L2_CAMERA_HPP_
 
+#include "v4l2_camera/v4l2_camera.hpp"
 #include "v4l2_camera/v4l2_camera_device.hpp"
 
 #include <camera_info_manager/camera_info_manager.hpp>
 #include <image_transport/image_transport.hpp>
 
+#include <ostream>
 #include <rclcpp/rclcpp.hpp>
 #include <rcl_interfaces/msg/parameter.hpp>
 
@@ -30,8 +32,55 @@
 
 #include "v4l2_camera/visibility_control.h"
 
+#ifdef ENABLE_CUDA
+#include <nppdefs.h>
+#include <nppi_support_functions.h>
+#endif
+
 namespace v4l2_camera
 {
+#ifdef ENABLE_CUDA
+struct GPUMemoryManager
+{
+ public:
+  // helper structure to handle GPU memory
+  Npp8u * dev_ptr;
+  int step_bytes;
+  int allocated_size;
+
+  explicit GPUMemoryManager()
+  {
+    dev_ptr = nullptr;
+    step_bytes = 0;
+    allocated_size = 0;
+  }
+
+  ~GPUMemoryManager()
+  {
+    if (dev_ptr != nullptr) {
+      nppiFree(dev_ptr);
+    }
+  }
+
+  void Allocate(int width, int height)
+  {
+    if (dev_ptr == nullptr || allocated_size < height * step_bytes) {
+      dev_ptr = nppiMalloc_8u_C3(width, height, &step_bytes);
+      allocated_size = height * step_bytes;
+    }
+  }
+};
+
+
+void cudaErrorCheck(const cudaError_t e)
+{
+  if (e != cudaSuccess) {
+    std::stringstream ss;
+    ss << cudaGetErrorName(e) << " : " << cudaGetErrorString(e);
+    throw std::runtime_error{ss.str()};
+  }
+}
+#endif
 
 class V4L2Camera : public rclcpp::Node
 {
@@ -65,6 +114,13 @@ private:
 
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr on_set_parameters_callback_;
 
+#ifdef ENABLE_CUDA
+  // Memory region to communicate with GPU
+  std::allocator<GPUMemoryManager> allocator_;
+  std::shared_ptr<GPUMemoryManager> src_dev_;
+  std::shared_ptr<GPUMemoryManager> dst_dev_;
+#endif
+
   void createParameters();
   bool handleParameter(rclcpp::Parameter const & param);
 
@@ -74,6 +130,9 @@ private:
   bool requestTimePerFrame(TimePerFrame const & timePerFrame);
 
   sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
+#ifdef ENABLE_CUDA
+  sensor_msgs::msg::Image::UniquePtr convertOnGpu(sensor_msgs::msg::Image const & img);
+#endif
 
   bool checkCameraInfo(
     sensor_msgs::msg::Image const & img,
