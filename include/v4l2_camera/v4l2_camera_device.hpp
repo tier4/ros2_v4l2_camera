@@ -15,6 +15,7 @@
 #ifndef V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 #define V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 
+#include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 
 #include <map>
@@ -35,7 +36,7 @@ namespace v4l2_camera
 class V4l2CameraDevice
 {
 public:
-  explicit V4l2CameraDevice(std::string device);
+  explicit V4l2CameraDevice(std::string device, bool use_v4l2_buffer_timestamps);
 
   bool open();
   bool start();
@@ -81,6 +82,8 @@ public:
 
   std::string getCameraName();
 
+  int64_t getTimeOffset();
+
   sensor_msgs::msg::Image::UniquePtr capture();
 
 private:
@@ -94,6 +97,7 @@ private:
 
   std::string device_;
   int fd_;
+  bool use_v4l2_buffer_timestamps_;
 
   v4l2_capability capabilities_;
   v4l2_captureparm capture_parm_;

@@ -33,8 +33,8 @@
 using v4l2_camera::V4l2CameraDevice;
 using sensor_msgs::msg::Image;
 
-V4l2CameraDevice::V4l2CameraDevice(std::string device)
-: device_{std::move(device)}
+V4l2CameraDevice::V4l2CameraDevice(std::string device, bool use_v4l2_buffer_timestamps)
+: device_{std::move(device)}, use_v4l2_buffer_timestamps_{use_v4l2_buffer_timestamps}
 {
 }
 
@@ -213,12 +213,26 @@ std::string V4l2CameraDevice::getCameraName()
   return name;
 }
 
+int64_t V4l2CameraDevice::getTimeOffset()
+{
+  rclcpp::Time system_time = rclcpp::Clock{RCL_SYSTEM_TIME}.now();
+  rclcpp::Time steady_time = rclcpp::Clock{RCL_STEADY_TIME}.now();
+  return (system_time.nanoseconds() - steady_time.nanoseconds());
+}
+
 Image::UniquePtr V4l2CameraDevice::capture()
 {
   auto buf = v4l2_buffer{};
+  rclcpp::Time buf_stamp;
 
   buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   buf.memory = V4L2_MEMORY_MMAP;
+
+  // Get time offset if monotonic clock is used
+  int64_t time_offset = 0;
+  if (use_v4l2_buffer_timestamps_) {
+    time_offset = getTimeOffset();
+  }
 
   // Dequeue buffer with new image
   if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf)) {
@@ -227,6 +241,13 @@ Image::UniquePtr V4l2CameraDevice::capture()
       "Error dequeueing buffer: %s (%s)", strerror(errno),
       std::to_string(errno).c_str());
     return nullptr;
+  }
+
+  if (use_v4l2_buffer_timestamps_) {
+    buf_stamp = rclcpp::Time(1e9 * buf.timestamp.tv_sec + static_cast<uint32_t>(1e3 * buf.timestamp.tv_usec) + time_offset);
+  }
+  else {
+    buf_stamp = rclcpp::Clock{RCL_SYSTEM_TIME}.now();
   }
 
   // Requeue buffer to be reused for new captures
@@ -240,6 +261,7 @@ Image::UniquePtr V4l2CameraDevice::capture()
 
   // Create image object
   auto img = std::make_unique<Image>();
+  img->header.stamp = buf_stamp;
   img->width = cur_data_format_.width;
   img->height = cur_data_format_.height;
   img->step = cur_data_format_.bytesPerLine;

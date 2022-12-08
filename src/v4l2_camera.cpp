@@ -58,7 +58,12 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   device_descriptor.description = "Path to video device";
   device_descriptor.read_only = true;
   auto device = declare_parameter<std::string>("video_device", "/dev/video0", device_descriptor);
-  camera_ = std::make_shared<V4l2CameraDevice>(device);
+
+  auto use_v4l2_buffer_timestamps_description = rcl_interfaces::msg::ParameterDescriptor{};
+  use_v4l2_buffer_timestamps_description.description = "Use v4l2 buffer timestamps";
+  auto use_v4l2_buffer_timestamps = declare_parameter<bool>("use_v4l2_buffer_timestamps", true, use_v4l2_buffer_timestamps_description);
+
+  camera_ = std::make_shared<V4l2CameraDevice>(device, use_v4l2_buffer_timestamps);
 
   if (!camera_->open()) {
     return;
@@ -90,7 +95,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           continue;
         }
 
-        auto stamp = now();
+        auto stamp = img->header.stamp;
         if (img->encoding != output_encoding_) {
 #ifdef ENABLE_CUDA
           img = convertOnGpu(*img);
