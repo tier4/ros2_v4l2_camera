@@ -215,8 +215,11 @@ std::string V4l2CameraDevice::getCameraName()
 
 int64_t V4l2CameraDevice::getTimeOffset()
 {
-  rclcpp::Time system_time = rclcpp::Clock{RCL_SYSTEM_TIME}.now();
-  rclcpp::Time steady_time = rclcpp::Clock{RCL_STEADY_TIME}.now();
+  timespec system_sample, monotonic_sample;
+  clock_gettime(CLOCK_REALTIME, &system_sample);
+  clock_gettime(CLOCK_MONOTONIC, &monotonic_sample);
+  rclcpp::Time system_time(system_sample.tv_sec, system_sample.tv_nsec);
+  rclcpp::Time steady_time(monotonic_sample.tv_sec, monotonic_sample.tv_nsec);
   return (system_time.nanoseconds() - steady_time.nanoseconds());
 }
 
