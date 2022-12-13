@@ -14,6 +14,7 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
+#include <rclcpp/qos.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 
 #include <sstream>
@@ -46,11 +47,14 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Prepare publisher
   // This should happen before registering on_set_parameters_callback,
   // else transport plugins will fail to declare their parameters
+  bool use_sensor_data_qos = declare_parameter("use_sensor_data_qos", false);
+  const auto qos = use_sensor_data_qos ? rclcpp::SensorDataQoS() : rclcpp::QoS(10);
   if (options.use_intra_process_comms()) {
-    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", 10);
-    info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("camera_info", 10);
+    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", qos);
+    info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("camera_info", qos);
   } else {
-    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw");
+    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw",
+                                                                     qos.get_rmw_qos_profile());
   }
 
   // Prepare camera
@@ -142,7 +146,7 @@ void V4L2Camera::createParameters()
     output_encoding_description);
 
   // Camera info parameters
-  auto camera_info_url = std::string{};
+  auto camera_info_url = declare_parameter("camera_info_url", "");
   if (get_parameter("camera_info_url", camera_info_url)) {
     if (cinfo_->validateURL(camera_info_url)) {
       cinfo_->loadCameraInfo(camera_info_url);

@@ -16,12 +16,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # find dependencies
-find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_ros REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(rclcpp_components REQUIRED)
-find_package(image_transport REQUIRED)
-find_package(camera_info_manager REQUIRED)
+find_package(ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies()
 find_package(CUDA)
 
 if (CUDA_FOUND)
@@ -113,4 +109,6 @@ ament_export_dependencies(
   "camera_info_manager"
 )
 
-ament_package()
+ament_auto_package(INSTALL_TO_SHARE
+  launch
+)
