@@ -113,6 +113,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         }
 
         ci->header.stamp = stamp;
+        ci->header.frame_id = camera_frame_id_;
 
         if (get_node_options().use_intra_process_comms()) {
           RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
