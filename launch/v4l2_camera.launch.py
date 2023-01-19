@@ -70,7 +70,6 @@ def launch_setup(context, *args, **kwargs):
                 {
                     "camera_info_url": LaunchConfiguration("camera_info_url"),
                     "use_sensor_data_qos": LaunchConfiguration("use_sensor_data_qos"),
-                    "camera_frame_id": [LaunchConfiguration("camera_name"), "/camera_optical_link"]
                 },
             ],
             extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
