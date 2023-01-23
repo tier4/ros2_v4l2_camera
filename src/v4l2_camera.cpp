@@ -491,7 +491,7 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
     "Converting: %s -> %s", img.encoding.c_str(), output_encoding_.c_str());
 
   // TODO(sander): temporary until cv_bridge and image_proc are available in ROS 2
-  if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
+  if (img.encoding == sensor_msgs::image_encodings::YUV422_YUY2 &&
     output_encoding_ == sensor_msgs::image_encodings::RGB8)
   {
     auto outImg = std::make_unique<sensor_msgs::msg::Image>();
@@ -524,7 +524,8 @@ bool V4L2Camera::checkCameraInfo(
 #ifdef ENABLE_CUDA
 sensor_msgs::msg::Image::UniquePtr V4L2Camera::convertOnGpu(sensor_msgs::msg::Image const & img)
 {
-  if (img.encoding != sensor_msgs::image_encodings::YUV422 ||
+  if ((img.encoding != sensor_msgs::image_encodings::YUV422 &&
+       img.encoding != sensor_msgs::image_encodings::YUV422_YUY2) ||
       output_encoding_ != sensor_msgs::image_encodings::RGB8) {
     RCLCPP_WARN_ONCE(
         get_logger(),
@@ -552,11 +553,20 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convertOnGpu(sensor_msgs::msg::Im
                                    cudaMemcpyHostToDevice));
 
   NppiSize roi = {static_cast<int>(img.width), static_cast<int>(img.height)};
-  NppStatus res = nppiYUV422ToRGB_8u_C2C3R(src_dev_->dev_ptr,
-                                           src_dev_->step_bytes,
-                                           dst_dev_->dev_ptr,
-                                           dst_dev_->step_bytes,
-                                           roi);
+  NppStatus res;
+  if (img.encoding == sensor_msgs::image_encodings::YUV422_YUY2) {
+    res = nppiYUV422ToRGB_8u_C2C3R(src_dev_->dev_ptr,
+                                             src_dev_->step_bytes,
+                                             dst_dev_->dev_ptr,
+                                             dst_dev_->step_bytes,
+                                             roi);
+  } else {
+    res = nppiCbYCr422ToRGB_8u_C2C3R(src_dev_->dev_ptr,
+                                     src_dev_->step_bytes,
+                                     dst_dev_->dev_ptr,
+                                     dst_dev_->step_bytes,
+                                     roi);
+  }
   if (res != NPP_SUCCESS) {
     throw std::runtime_error{"NPPI operation failed"};
   }
