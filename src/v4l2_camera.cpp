@@ -63,11 +63,16 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   device_descriptor.read_only = true;
   auto device = declare_parameter<std::string>("video_device", "/dev/video0", device_descriptor);
 
-  auto use_v4l2_buffer_timestamps_description = rcl_interfaces::msg::ParameterDescriptor{};
-  use_v4l2_buffer_timestamps_description.description = "Use v4l2 buffer timestamps";
-  auto use_v4l2_buffer_timestamps = declare_parameter<bool>("use_v4l2_buffer_timestamps", true, use_v4l2_buffer_timestamps_description);
+  auto use_v4l2_buffer_timestamps_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
+  use_v4l2_buffer_timestamps_descriptor.description = "Use v4l2 buffer timestamps";
+  auto use_v4l2_buffer_timestamps = declare_parameter<bool>("use_v4l2_buffer_timestamps", true, use_v4l2_buffer_timestamps_descriptor);
 
-  camera_ = std::make_shared<V4l2CameraDevice>(device, use_v4l2_buffer_timestamps);
+  auto timestamp_offset_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
+  timestamp_offset_descriptor.description = "Timestamp offset in nanoseconds";
+  auto timestamp_offset = declare_parameter<int64_t>("timestamp_offset", 0, timestamp_offset_descriptor);
+  rclcpp::Duration timestamp_offset_duration = rclcpp::Duration::from_nanoseconds(timestamp_offset);
+
+  camera_ = std::make_shared<V4l2CameraDevice>(device, use_v4l2_buffer_timestamps, timestamp_offset_duration);
 
   if (!camera_->open()) {
     return;

@@ -33,8 +33,8 @@
 using v4l2_camera::V4l2CameraDevice;
 using sensor_msgs::msg::Image;
 
-V4l2CameraDevice::V4l2CameraDevice(std::string device, bool use_v4l2_buffer_timestamps)
-: device_{std::move(device)}, use_v4l2_buffer_timestamps_{use_v4l2_buffer_timestamps}
+V4l2CameraDevice::V4l2CameraDevice(std::string device, bool use_v4l2_buffer_timestamps, rclcpp::Duration timestamp_offset_duration)
+: device_{std::move(device)}, use_v4l2_buffer_timestamps_{use_v4l2_buffer_timestamps}, timestamp_offset_{timestamp_offset_duration}
 {
 }
 
@@ -247,11 +247,12 @@ Image::UniquePtr V4l2CameraDevice::capture()
   }
 
   if (use_v4l2_buffer_timestamps_) {
-    buf_stamp = rclcpp::Time(1e9 * buf.timestamp.tv_sec + static_cast<uint32_t>(1e3 * buf.timestamp.tv_usec) + time_offset);
+    buf_stamp = rclcpp::Time(buf.timestamp.tv_sec * 1000000000 + buf.timestamp.tv_usec * 1000 + time_offset);
   }
   else {
     buf_stamp = rclcpp::Clock{RCL_SYSTEM_TIME}.now();
   }
+  buf_stamp = buf_stamp + timestamp_offset_;
 
   // Requeue buffer to be reused for new captures
   if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
