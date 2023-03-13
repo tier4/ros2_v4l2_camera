@@ -14,6 +14,7 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
+#include <rclcpp/qos.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 
 #include <sstream>
@@ -46,11 +47,14 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Prepare publisher
   // This should happen before registering on_set_parameters_callback,
   // else transport plugins will fail to declare their parameters
+  bool use_sensor_data_qos = declare_parameter("use_sensor_data_qos", false);
+  const auto qos = use_sensor_data_qos ? rclcpp::SensorDataQoS() : rclcpp::QoS(10);
   if (options.use_intra_process_comms()) {
-    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", 10);
-    info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("camera_info", 10);
+    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", qos);
+    info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("camera_info", qos);
   } else {
-    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw");
+    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw",
+                                                                     qos.get_rmw_qos_profile());
   }
 
   // Prepare camera
@@ -114,6 +118,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         }
 
         ci->header.stamp = stamp;
+        ci->header.frame_id = camera_frame_id_;
 
         if (get_node_options().use_intra_process_comms()) {
           RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
@@ -147,7 +152,7 @@ void V4L2Camera::createParameters()
     output_encoding_description);
 
   // Camera info parameters
-  auto camera_info_url = std::string{};
+  auto camera_info_url = declare_parameter("camera_info_url", "");
   if (get_parameter("camera_info_url", camera_info_url)) {
     if (cinfo_->validateURL(camera_info_url)) {
       cinfo_->loadCameraInfo(camera_info_url);
@@ -491,7 +496,7 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
     "Converting: %s -> %s", img.encoding.c_str(), output_encoding_.c_str());
 
   // TODO(sander): temporary until cv_bridge and image_proc are available in ROS 2
-  if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
+  if (img.encoding == sensor_msgs::image_encodings::YUV422_YUY2 &&
     output_encoding_ == sensor_msgs::image_encodings::RGB8)
   {
     auto outImg = std::make_unique<sensor_msgs::msg::Image>();
@@ -524,7 +529,8 @@ bool V4L2Camera::checkCameraInfo(
 #ifdef ENABLE_CUDA
 sensor_msgs::msg::Image::UniquePtr V4L2Camera::convertOnGpu(sensor_msgs::msg::Image const & img)
 {
-  if (img.encoding != sensor_msgs::image_encodings::YUV422 ||
+  if ((img.encoding != sensor_msgs::image_encodings::YUV422 &&
+       img.encoding != sensor_msgs::image_encodings::YUV422_YUY2) ||
       output_encoding_ != sensor_msgs::image_encodings::RGB8) {
     RCLCPP_WARN_ONCE(
         get_logger(),
@@ -552,11 +558,20 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convertOnGpu(sensor_msgs::msg::Im
                                    cudaMemcpyHostToDevice));
 
   NppiSize roi = {static_cast<int>(img.width), static_cast<int>(img.height)};
-  NppStatus res = nppiYUV422ToRGB_8u_C2C3R(src_dev_->dev_ptr,
-                                           src_dev_->step_bytes,
-                                           dst_dev_->dev_ptr,
-                                           dst_dev_->step_bytes,
-                                           roi);
+  NppStatus res;
+  if (img.encoding == sensor_msgs::image_encodings::YUV422_YUY2) {
+    res = nppiYUV422ToRGB_8u_C2C3R(src_dev_->dev_ptr,
+                                             src_dev_->step_bytes,
+                                             dst_dev_->dev_ptr,
+                                             dst_dev_->step_bytes,
+                                             roi);
+  } else {
+    res = nppiCbYCr422ToRGB_8u_C2C3R(src_dev_->dev_ptr,
+                                     src_dev_->step_bytes,
+                                     dst_dev_->dev_ptr,
+                                     dst_dev_->step_bytes,
+                                     roi);
+  }
   if (res != NPP_SUCCESS) {
     throw std::runtime_error{"NPPI operation failed"};
   }

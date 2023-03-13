@@ -5,15 +5,10 @@ A ROS 2 camera driver using Video4Linux2 (V4L2).
 ## Installation
 [This article](https://medium.com/swlh/raspberry-pi-ros-2-camera-eef8f8b94304) details how to build and run this package. It focuses on Raspberry Pi OS with the Raspberry Pi Camera Module V2 but should generalise for most systems.
 
-### ROS package install
-This is available from the ROS package repositories and can therefore be installed with the following command and your ROS version name:
-
-    apt-get install ros-<ros_version>-v4l2-camera
-
 ### Building from source
 If you need to modify the code or ensure you have the latest update you will need to clone this repo then build the package.
 
-    $ git clone --branch foxy https://gitlab.com/boldhearts/ros2_v4l2_camera.git src/v4l2_camera
+    $ git clone --branch galactic https://github.com/tier4/ros2_v4l2_camera.git
     $ colcon build
 
 Most users will also want to set up compressed transport using the dependencies below.
@@ -67,7 +62,7 @@ publishes images as `sensor_msgs/Image` messages.
     V4L2](https://linuxtv.org/downloads/v4l-dvb-apis/uapi/v4l/videodev.html)
     and by your camera. The node outputs the available formats
     supported by your camera when started.  
-    Currently supported: `"YUYV"` or `"GREY"`
+    Currently supported: `"YUYV"`, `"UYVY"` or `"GREY"`. (`"UYVY"` support is only available on systems with CUDA)
 
 * `output_encoding` - `string`, default: `"rgb8"`
 
