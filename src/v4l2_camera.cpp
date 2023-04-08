@@ -48,6 +48,15 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // This should happen before registering on_set_parameters_callback,
   // else transport plugins will fail to declare their parameters
   bool use_sensor_data_qos = declare_parameter("use_sensor_data_qos", false);
+  publish_rate_ = declare_parameter("publish_rate", 10.0);
+  if(publish_rate_ > 0){
+    const auto publish_period = rclcpp::Rate(publish_rate_).period();
+    image_pub_timer_ = this->create_wall_timer(publish_period, [this](){this->publish_next_frame_=true;});
+    publish_next_frame_ = false;
+  }
+  else{
+    publish_next_frame_ = true;
+  }
   const auto qos = use_sensor_data_qos ? rclcpp::SensorDataQoS() : rclcpp::QoS(10);
   if (options.use_intra_process_comms()) {
     image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", qos);
@@ -93,6 +102,9 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
           continue;
         }
+        if(publish_next_frame_ == false){
+          continue;
+        }
 
         auto stamp = now();
         if (img->encoding != output_encoding_) {
@@ -114,6 +126,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
         ci->header.stamp = stamp;
         ci->header.frame_id = camera_frame_id_;
+        publish_next_frame_ = publish_rate_ <= 0;
 
         if (get_node_options().use_intra_process_comms()) {
           RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
