@@ -70,6 +70,7 @@ def launch_setup(context, *args, **kwargs):
                 {
                     "camera_info_url": LaunchConfiguration("camera_info_url"),
                     "use_sensor_data_qos": LaunchConfiguration("use_sensor_data_qos"),
+                    "publish_rate": LaunchConfiguration("publish_rate"),
                 },
             ],
             extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
@@ -123,6 +124,8 @@ def generate_launch_description():
                    description='flag to use sensor data QoS. '
                    'If true, the reliability of image topic QoS will be BEST_EFFORT, '
                    'otherwise be RELIABLE')
+    add_launch_arg('publish_rate', "-1.0",
+                   description='publish frame number per second. value <= 0 means no limitation on publish rate')
 
     return LaunchDescription(
         [
