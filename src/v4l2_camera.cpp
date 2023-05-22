@@ -273,6 +273,9 @@ void V4L2Camera::createParameters()
           range.from_value = c.minimum;
           range.to_value = c.maximum;
           descriptor.integer_range.push_back(range);
+          if (current_value < c.minimum || c.maximum < current_value) {
+            current_value = c.defaultValue;
+          }
           auto value = declare_parameter<int64_t>(name, current_value, descriptor);
           camera_->setControlValue(c.id, value);
           break;
