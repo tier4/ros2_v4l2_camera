@@ -27,6 +27,7 @@
 #include <string>
 #include <utility>
 #include <memory>
+#include <fstream>
 
 #include "v4l2_camera/fourcc.hpp"
 
@@ -40,6 +41,9 @@ V4l2CameraDevice::V4l2CameraDevice(std::string device, bool use_v4l2_buffer_time
 
 bool V4l2CameraDevice::open()
 {
+  // Check if TSC offset applies
+  setTSCOffset();
+  
   fd_ = ::open(device_.c_str(), O_RDWR);
 
   if (fd_ < 0) {
@@ -217,10 +221,23 @@ int64_t V4l2CameraDevice::getTimeOffset()
 {
   timespec system_sample, monotonic_sample;
   clock_gettime(CLOCK_REALTIME, &system_sample);
-  clock_gettime(CLOCK_MONOTONIC, &monotonic_sample);
-  rclcpp::Time system_time(system_sample.tv_sec, system_sample.tv_nsec);
-  rclcpp::Time steady_time(monotonic_sample.tv_sec, monotonic_sample.tv_nsec);
-  return (system_time.nanoseconds() - steady_time.nanoseconds());
+  clock_gettime(CLOCK_MONOTONIC_RAW, &monotonic_sample);
+  return (static_cast<int64_t>(system_sample.tv_sec * 1e9) - static_cast<int64_t>(monotonic_sample.tv_sec * 1e9)
+          + static_cast<int64_t>(system_sample.tv_nsec) - static_cast<int64_t>(monotonic_sample.tv_nsec));
+}
+
+void V4l2CameraDevice::setTSCOffset()
+{
+  std::ifstream offset_ns_file("/sys/devices/system/clocksource/clocksource0/offset_ns");
+  if (offset_ns_file.good()) {
+    std::string offset;
+    offset_ns_file >> offset;
+    offset_ns_file.close();
+    tsc_offset_ = std::stoull(offset);
+  }
+  else {
+    tsc_offset_ = 0;
+  }
 }
 
 Image::UniquePtr V4l2CameraDevice::capture()
@@ -230,12 +247,6 @@ Image::UniquePtr V4l2CameraDevice::capture()
 
   buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   buf.memory = V4L2_MEMORY_MMAP;
-
-  // Get time offset if monotonic clock is used
-  int64_t time_offset = 0;
-  if (use_v4l2_buffer_timestamps_) {
-    time_offset = getTimeOffset();
-  }
 
   // Dequeue buffer with new image
   if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf)) {
@@ -247,7 +258,10 @@ Image::UniquePtr V4l2CameraDevice::capture()
   }
 
   if (use_v4l2_buffer_timestamps_) {
-    buf_stamp = rclcpp::Time(buf.timestamp.tv_sec * 1000000000 + buf.timestamp.tv_usec * 1000 + time_offset);
+    buf_stamp = rclcpp::Time(static_cast<int64_t>(buf.timestamp.tv_sec) * 1e9
+                             + static_cast<int64_t>(buf.timestamp.tv_usec) * 1e3 
+                             + getTimeOffset() - tsc_offset_);
+  
   }
   else {
     buf_stamp = rclcpp::Clock{RCL_SYSTEM_TIME}.now();

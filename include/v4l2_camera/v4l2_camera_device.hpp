@@ -84,6 +84,8 @@ public:
 
   int64_t getTimeOffset();
 
+  void setTSCOffset();
+
   sensor_msgs::msg::Image::UniquePtr capture();
 
 private:
@@ -99,6 +101,7 @@ private:
   int fd_;
   bool use_v4l2_buffer_timestamps_;
   rclcpp::Duration timestamp_offset_;
+  uint64_t tsc_offset_;
 
   v4l2_capability capabilities_;
   v4l2_captureparm capture_parm_;
