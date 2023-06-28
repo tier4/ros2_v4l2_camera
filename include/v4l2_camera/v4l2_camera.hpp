@@ -114,6 +114,11 @@ private:
 
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr on_set_parameters_callback_;
 
+  double publish_rate_;
+  rclcpp::TimerBase::SharedPtr image_pub_timer_;
+
+  bool publish_next_frame_;
+
 #ifdef ENABLE_CUDA
   // Memory region to communicate with GPU
   std::allocator<GPUMemoryManager> allocator_;

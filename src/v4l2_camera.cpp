@@ -48,14 +48,22 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // This should happen before registering on_set_parameters_callback,
   // else transport plugins will fail to declare their parameters
   bool use_sensor_data_qos = declare_parameter("use_sensor_data_qos", false);
-  const auto qos = use_sensor_data_qos ? rclcpp::SensorDataQoS() : rclcpp::QoS(10);
-  if (options.use_intra_process_comms()) {
-    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", qos);
-    info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("camera_info", qos);
-  } else {
-    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw",
-                                                                     qos.get_rmw_qos_profile());
+  publish_rate_ = declare_parameter("publish_rate", -1.0);
+  if(std::abs(publish_rate_) < std::numeric_limits<double>::epsilon()){
+    RCLCPP_WARN(get_logger(), "Invalid publish_rate = 0. Use default value -1 instead");
+    publish_rate_ = -1.0;
   }
+  if(publish_rate_ > 0){
+    const auto publish_period = rclcpp::Rate(publish_rate_).period();
+    image_pub_timer_ = this->create_wall_timer(publish_period, [this](){this->publish_next_frame_=true;});
+    publish_next_frame_ = false;
+  }
+  else{
+    publish_next_frame_ = true;
+  }
+  const auto qos = use_sensor_data_qos ? rclcpp::SensorDataQoS() : rclcpp::QoS(10);
+  camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw",
+                                                                   qos.get_rmw_qos_profile());
 
   // Prepare camera
   auto device_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
@@ -103,6 +111,9 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
           continue;
         }
+        if(publish_next_frame_ == false){
+          continue;
+        }
 
         auto stamp = img->header.stamp;
         if (img->encoding != output_encoding_) {
@@ -124,14 +135,9 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
         ci->header.stamp = stamp;
         ci->header.frame_id = camera_frame_id_;
+        publish_next_frame_ = publish_rate_ < 0;
 
-        if (get_node_options().use_intra_process_comms()) {
-          RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
-          image_pub_->publish(std::move(img));
-          info_pub_->publish(std::move(ci));
-        } else {
-          camera_transport_pub_.publish(*img, *ci);
-        }
+        camera_transport_pub_.publish(*img, *ci);
       }
     }
   };
@@ -277,6 +283,9 @@ void V4L2Camera::createParameters()
           range.from_value = c.minimum;
           range.to_value = c.maximum;
           descriptor.integer_range.push_back(range);
+          if (current_value < c.minimum || c.maximum < current_value) {
+            current_value = c.defaultValue;
+          }
           auto value = declare_parameter<int64_t>(name, current_value, descriptor);
           camera_->setControlValue(c.id, value);
           break;
