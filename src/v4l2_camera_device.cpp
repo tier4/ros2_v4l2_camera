@@ -27,19 +27,23 @@
 #include <string>
 #include <utility>
 #include <memory>
+#include <fstream>
 
 #include "v4l2_camera/fourcc.hpp"
 
 using v4l2_camera::V4l2CameraDevice;
 using sensor_msgs::msg::Image;
 
-V4l2CameraDevice::V4l2CameraDevice(std::string device)
-: device_{std::move(device)}
+V4l2CameraDevice::V4l2CameraDevice(std::string device, bool use_v4l2_buffer_timestamps, rclcpp::Duration timestamp_offset_duration)
+: device_{std::move(device)}, use_v4l2_buffer_timestamps_{use_v4l2_buffer_timestamps}, timestamp_offset_{timestamp_offset_duration}
 {
 }
 
 bool V4l2CameraDevice::open()
 {
+  // Check if TSC offset applies
+  setTSCOffset();
+  
   fd_ = ::open(device_.c_str(), O_RDWR);
 
   if (fd_ < 0) {
@@ -213,9 +217,33 @@ std::string V4l2CameraDevice::getCameraName()
   return name;
 }
 
+int64_t V4l2CameraDevice::getTimeOffset()
+{
+  timespec system_sample, monotonic_sample;
+  clock_gettime(CLOCK_REALTIME, &system_sample);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &monotonic_sample);
+  return (static_cast<int64_t>(system_sample.tv_sec * 1e9) - static_cast<int64_t>(monotonic_sample.tv_sec * 1e9)
+          + static_cast<int64_t>(system_sample.tv_nsec) - static_cast<int64_t>(monotonic_sample.tv_nsec));
+}
+
+void V4l2CameraDevice::setTSCOffset()
+{
+  std::ifstream offset_ns_file("/sys/devices/system/clocksource/clocksource0/offset_ns");
+  if (offset_ns_file.good()) {
+    std::string offset;
+    offset_ns_file >> offset;
+    offset_ns_file.close();
+    tsc_offset_ = std::stoull(offset);
+  }
+  else {
+    tsc_offset_ = 0;
+  }
+}
+
 Image::UniquePtr V4l2CameraDevice::capture()
 {
   auto buf = v4l2_buffer{};
+  rclcpp::Time buf_stamp;
 
   buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   buf.memory = V4L2_MEMORY_MMAP;
@@ -229,6 +257,17 @@ Image::UniquePtr V4l2CameraDevice::capture()
     return nullptr;
   }
 
+  if (use_v4l2_buffer_timestamps_) {
+    buf_stamp = rclcpp::Time(static_cast<int64_t>(buf.timestamp.tv_sec) * 1e9
+                             + static_cast<int64_t>(buf.timestamp.tv_usec) * 1e3 
+                             + getTimeOffset() - tsc_offset_);
+  
+  }
+  else {
+    buf_stamp = rclcpp::Clock{RCL_SYSTEM_TIME}.now();
+  }
+  buf_stamp = buf_stamp + timestamp_offset_;
+
   // Requeue buffer to be reused for new captures
   if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
     RCLCPP_ERROR(
@@ -240,6 +279,7 @@ Image::UniquePtr V4l2CameraDevice::capture()
 
   // Create image object
   auto img = std::make_unique<Image>();
+  img->header.stamp = buf_stamp;
   img->width = cur_data_format_.width;
   img->height = cur_data_format_.height;
   img->step = cur_data_format_.bytesPerLine;

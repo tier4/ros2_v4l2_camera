@@ -83,6 +83,21 @@ publishes images as `sensor_msgs/Image` messages.
     another period near to it. In that case the parameter change is
     reported to have failed.
 
+* `use_v4l2_buffer_timestamps` - `bool`, default: `true`
+
+    Flag to determine image timestamp behaviour. When `true`, the images
+    will be timestamped according to the V4L2 buffer timestamps. When
+    `false` the image timestamps will be the system time when the image
+    buffer is read.
+
+* `timestamp_offset` - `int64_t`, default: `0`
+
+    Offset to be added to the image timestamp, in nanoseconds. This is
+    useful to correct for delays in the image capture pipeline, when
+    performing synchronization with other sensor data. Note that this 
+    value will usually be negative (correcting for delays rather than 
+    adding delay to the timestamp).
+
 * Camera Control Parameters
 
     Camera controls, such as brightness, contrast, white balance, etc,
