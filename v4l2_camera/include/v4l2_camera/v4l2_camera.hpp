@@ -17,18 +17,19 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 #include "v4l2_camera/v4l2_camera_device.hpp"
+#include "v4l2_camera/yuv422_yuy2_image_encodings.h"
 
-#include <camera_info_manager/camera_info_manager.hpp>
-#include <image_transport/image_transport.hpp>
+#include <camera_info_manager/camera_info_manager.h>
+#include <image_transport/image_transport.h>
 
 #include <ostream>
-#include <rclcpp/rclcpp.hpp>
-#include <rcl_interfaces/msg/parameter.hpp>
+#include <ros/ros.h>
 
 #include <memory>
 #include <string>
 #include <map>
 #include <vector>
+#include <thread>
 
 #include "v4l2_camera/visibility_control.h"
 
@@ -70,36 +71,33 @@ struct GPUMemoryManager
     }
   }
 };
-
-
-void cudaErrorCheck(const cudaError_t e)
-{
-  if (e != cudaSuccess) {
-    std::stringstream ss;
-    ss << cudaGetErrorName(e) << " : " << cudaGetErrorString(e);
-    throw std::runtime_error{ss.str()};
-  }
-}
 #endif
 
-class V4L2Camera : public rclcpp::Node
+class V4L2Camera
 {
 public:
-  explicit V4L2Camera(rclcpp::NodeOptions const & options);
-
+  explicit V4L2Camera(ros::NodeHandle node, ros::NodeHandle private_nh);
   virtual ~V4L2Camera();
 
 private:
+  ros::NodeHandle node;
+  ros::NodeHandle private_nh;
+  double publish_rate_;
+  std::string device;
+  bool use_v4l2_buffer_timestamps;
+  int timestamp_offset;
+
   using ImageSize = std::vector<int64_t>;
   using TimePerFrame = std::vector<int64_t>;
-
+  
   std::shared_ptr<V4l2CameraDevice> camera_;
 
   // Publisher used for intra process comm
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
-  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr info_pub_;
+  ros::Publisher image_pub_;
+  ros::Publisher info_pub_;
 
   // Publisher used for inter process comm
+  image_transport::ImageTransport image_transport_;
   image_transport::CameraPublisher camera_transport_pub_;
 
   std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
@@ -107,17 +105,24 @@ private:
   std::thread capture_thread_;
   std::atomic<bool> canceled_;
 
-  std::string camera_frame_id_;
   std::string output_encoding_;
+  std::string camera_info_url_;
+  std::string camera_frame_id_;
+  std::string pixel_format_;
+  
+  int image_size_width;
+  int image_size_height;
+
+  int time_per_frame_first;
+  int time_per_frame_second;
 
   std::map<std::string, int32_t> control_name_to_id_;
 
-  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr on_set_parameters_callback_;
 
-  double publish_rate_;
-  rclcpp::TimerBase::SharedPtr image_pub_timer_;
+  ros::Timer image_pub_timer_;
 
   bool publish_next_frame_;
+  bool use_image_transport_;
 
 #ifdef ENABLE_CUDA
   // Memory region to communicate with GPU
@@ -127,22 +132,23 @@ private:
 #endif
 
   void createParameters();
-  bool handleParameter(rclcpp::Parameter const & param);
-
   bool requestPixelFormat(std::string const & fourcc);
-  bool requestImageSize(ImageSize const & size);
+  bool requestImageSize(std::vector<int64_t> const & size);
+  bool requestTimePerFrame(TimePerFrame const & tpf);
 
-  bool requestTimePerFrame(TimePerFrame const & timePerFrame);
 
-  sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
-#ifdef ENABLE_CUDA
-  sensor_msgs::msg::Image::UniquePtr convertOnGpu(sensor_msgs::msg::Image const & img);
-#endif
+  void publishTimer();
+
 
   bool checkCameraInfo(
-    sensor_msgs::msg::Image const & img,
-    sensor_msgs::msg::CameraInfo const & ci);
+    sensor_msgs::Image const & img,
+    sensor_msgs::CameraInfo const & ci);
+sensor_msgs::ImagePtr convert(sensor_msgs::Image& img);
+#ifdef ENABLE_CUDA
+sensor_msgs::ImagePtr convertOnGpu(sensor_msgs::Image& img);
+#endif
 };
+
 
 }  // namespace v4l2_camera
 

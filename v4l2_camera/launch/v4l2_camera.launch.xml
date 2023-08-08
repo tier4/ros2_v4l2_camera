@@ -1,0 +1,21 @@
+<launch>
+    <arg name="publish_rate" default="-1.0" />
+    <arg name="video_device" default="/dev/video2" />
+    <arg name="use_v4l2_buffer_timestamps" default="true" />
+    <arg name="timestamp_offset" default="0.0" />
+    <arg name="output_encoding" default="rgb8" />
+    <arg name="camera_info_url" default="" />
+    <arg name="camera_frame_id" default="camera" />
+    <arg name="pixel_format" default="YUYV" />
+
+    <node pkg="v4l2_camera" type="v4l2_camera_node" name="v4l2_camera" output="screen">
+        <param name="publish_rate" value="$(arg publish_rate)" />
+        <param name="video_device" value="$(arg video_device)" />
+        <param name="use_v4l2_buffer_timestamps" value="$(arg use_v4l2_buffer_timestamps)" />
+        <param name="timestamp_offset" value="$(arg timestamp_offset)" />
+        <param name="output_encoding" value="$(arg output_encoding)" />
+        <param name="camera_info_url" value="$(arg camera_info_url)" />
+        <param name="camera_frame_id" value="$(arg camera_frame_id)" />
+        <param name="pixel_format" value="$(arg pixel_format)" />
+    </node>
+</launch>

@@ -15,8 +15,8 @@
 #ifndef V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 #define V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 
-#include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/image.hpp>
+#include <ros/ros.h>
+#include <sensor_msgs/Image.h>
 
 #include <map>
 #include <string>
@@ -27,6 +27,8 @@
 #include "v4l2_camera/control.hpp"
 #include "v4l2_camera/image_format.hpp"
 #include "v4l2_camera/pixel_format.hpp"
+#include "v4l2_camera/yuv422_yuy2_image_encodings.h"
+
 
 namespace v4l2_camera
 {
@@ -36,7 +38,7 @@ namespace v4l2_camera
 class V4l2CameraDevice
 {
 public:
-  explicit V4l2CameraDevice(std::string device, bool use_v4l2_buffer_timestamps, rclcpp::Duration timestamp_offset_duration);
+  explicit V4l2CameraDevice(std::string device, bool use_v4l2_buffer_timestamps, ros::Duration timestamp_offset_duration);
 
   bool open();
   bool start();
@@ -86,7 +88,7 @@ public:
 
   void setTSCOffset();
 
-  sensor_msgs::msg::Image::UniquePtr capture();
+  sensor_msgs::ImagePtr capture();
 
 private:
   /// Image buffer
@@ -100,7 +102,7 @@ private:
   std::string device_;
   int fd_;
   bool use_v4l2_buffer_timestamps_;
-  rclcpp::Duration timestamp_offset_;
+  ros::Duration timestamp_offset_;
   uint64_t tsc_offset_;
 
   v4l2_capability capabilities_;

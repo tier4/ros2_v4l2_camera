@@ -1,0 +1,41 @@
+<launch>
+	<let name="image_topic" value="image_raw"/>
+	<let name="use_sensor_data_qos" value="False"/>
+	<let name="use_intra_process" value="False"/>
+	<!-- <let name="v4l2_camera_param_path" value="$(find-pkg-share v4l2_camera)/launch/v4l2_camera.param.yaml"/> -->
+	<!-- <let name="camera_info_url" value="file://$(find-pkg-share v4l2_camera)/launch/c1_camera_info.yaml"/> -->
+	<let name="c1_param_path" value="$(find-pkg-share v4l2_camera)/launch/c1.param.yaml"/>
+	<let name="c2_param_path" value="$(find-pkg-share v4l2_camera)/launch/c2.param.yaml"/>
+	<let name="camera_info_url" value="file://$(find-pkg-share v4l2_camera)/launch/ost.yaml"/>
+    <arg name="rect_impl" default="npp" />
+    <arg name="use_opencv_map_init" default="False" />
+    <arg name="use_image_transport" default="False" />
+    <arg name="alpha" default="0.0" />
+
+	<!--  Launch v4l2_camera inside the container node  -->
+	<include file="$(find-pkg-share gpu_imgproc)/launch/full_v4l2_launch.py">
+		<arg name="image_topic" value="$(var image_topic)"/>
+		<arg name="camera_name" value="c1"/>
+		<arg name="v4l2_camera_param_path" value="$(var c1_param_path)"/>
+		<arg name="camera_info_url" value="$(var camera_info_url)"/>
+		<arg name="use_sensor_data_qos" value="$(var use_sensor_data_qos)"/>
+		<arg name="use_intra_process" value="$(var use_intra_process)"/>
+		<arg name="use_image_transport" value="$(var use_image_transport)" />
+		<arg name="alpha" value="$(var alpha)" />
+    <arg name="rect_impl" value="$(var rect_impl)" />
+    <arg name="use_opencv_map_init" value="$(var use_opencv_map_init)" />
+	</include>
+
+	<include file="$(find-pkg-share gpu_imgproc)/launch/full_v4l2_launch.py">
+		<arg name="image_topic" value="$(var image_topic)"/>
+		<arg name="camera_name" value="c2"/>
+		<arg name="v4l2_camera_param_path" value="$(var c2_param_path)"/>
+		<arg name="camera_info_url" value="$(var camera_info_url)"/>
+		<arg name="use_sensor_data_qos" value="$(var use_sensor_data_qos)"/>
+		<arg name="use_intra_process" value="$(var use_intra_process)"/>
+		<arg name="use_image_transport" value="$(var use_image_transport)" />
+		<arg name="alpha" value="$(var alpha)" />
+    <arg name="rect_impl" value="$(var rect_impl)" />
+    <arg name="use_opencv_map_init" value="$(var use_opencv_map_init)" />
+	</include>
+</launch>

@@ -14,8 +14,7 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
-#include <rclcpp/qos.hpp>
-#include <sensor_msgs/image_encodings.hpp>
+#include <sensor_msgs/image_encodings.h>
 
 #include <sstream>
 #include <stdexcept>
@@ -27,7 +26,6 @@
 
 #include "v4l2_camera/fourcc.hpp"
 
-#include "rclcpp_components/register_node_macro.hpp"
 #include "v4l2_camera/v4l2_camera_device.hpp"
 
 #ifdef ENABLE_CUDA
@@ -39,60 +37,52 @@ using namespace std::chrono_literals;
 
 namespace v4l2_camera
 {
-
-V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
-: rclcpp::Node{"v4l2_camera", options},
-  canceled_{false}
+V4L2Camera::V4L2Camera(ros::NodeHandle node, ros::NodeHandle private_nh)
+  : image_transport_(private_nh),
+    node(node),
+    private_nh(private_nh),
+    canceled_{false}
 {
-  // Prepare publisher
-  // This should happen before registering on_set_parameters_callback,
-  // else transport plugins will fail to declare their parameters
-  bool use_sensor_data_qos = declare_parameter("use_sensor_data_qos", false);
-  publish_rate_ = declare_parameter("publish_rate", -1.0);
+  private_nh.getParam("publish_rate", publish_rate_);
+  private_nh.getParam("video_device", device);
+  private_nh.getParam("use_v4l2_buffer_timestamps", use_v4l2_buffer_timestamps);
+  private_nh.getParam("timestamp_offset", timestamp_offset);
+  private_nh.getParam("use_image_transport", use_image_transport_);
+
   if(std::abs(publish_rate_) < std::numeric_limits<double>::epsilon()){
-    RCLCPP_WARN(get_logger(), "Invalid publish_rate = 0. Use default value -1 instead");
+    ROS_WARN("Invalid publish_rate = 0. Use default value -1 instead");
     publish_rate_ = -1.0;
   }
-  if(publish_rate_ > 0){
-    const auto publish_period = rclcpp::Rate(publish_rate_).period();
-    image_pub_timer_ = this->create_wall_timer(publish_period, [this](){this->publish_next_frame_=true;});
-    publish_next_frame_ = false;
+  // if(publish_rate_ > 0){
+  //   const auto publish_period = ros::Duration(publish_rate_);
+  //   image_pub_timer_ = node.createTimer(publish_period, &V4L2Camera::publishTimer, this);
+  //   publish_next_frame_ = false;
+  // }
+  // else{
+  //   publish_next_frame_ = true;
+  // }
+  if (use_image_transport_) {
+    camera_transport_pub_ = image_transport_.advertiseCamera("image_raw", 10);
+  } else {
+    image_pub_ = node.advertise<sensor_msgs::Image>("image_raw", 10);
+    info_pub_ = node.advertise<sensor_msgs::CameraInfo>("camera_info", 10);
   }
-  else{
-    publish_next_frame_ = true;
-  }
-  const auto qos = use_sensor_data_qos ? rclcpp::SensorDataQoS() : rclcpp::QoS(10);
-  camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw",
-                                                                   qos.get_rmw_qos_profile());
 
-  // Prepare camera
-  auto device_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
-  device_descriptor.description = "Path to video device";
-  device_descriptor.read_only = true;
-  auto device = declare_parameter<std::string>("video_device", "/dev/video0", device_descriptor);
-
-  auto use_v4l2_buffer_timestamps_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
-  use_v4l2_buffer_timestamps_descriptor.description = "Use v4l2 buffer timestamps";
-  auto use_v4l2_buffer_timestamps = declare_parameter<bool>("use_v4l2_buffer_timestamps", true, use_v4l2_buffer_timestamps_descriptor);
-
-  auto timestamp_offset_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
-  timestamp_offset_descriptor.description = "Timestamp offset in nanoseconds";
-  auto timestamp_offset = declare_parameter<int64_t>("timestamp_offset", 0, timestamp_offset_descriptor);
-  rclcpp::Duration timestamp_offset_duration = rclcpp::Duration::from_nanoseconds(timestamp_offset);
+  ros::Duration timestamp_offset_duration(0, timestamp_offset);
 
   camera_ = std::make_shared<V4l2CameraDevice>(device, use_v4l2_buffer_timestamps, timestamp_offset_duration);
-
+  
   if (!camera_->open()) {
     return;
   }
 
-  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
+  auto camera_info_url_ = "";
+  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(private_nh, camera_->getCameraName(), camera_info_url_);
 #ifdef ENABLE_CUDA
   src_dev_ = std::allocate_shared<GPUMemoryManager>(allocator_);
   dst_dev_ = std::allocate_shared<GPUMemoryManager>(allocator_);
 #endif
 
-  // Read parameters and set up callback
   createParameters();
 
   // Start the camera
@@ -103,9 +93,10 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Start capture thread
   capture_thread_ = std::thread{
     [this]() -> void {
-      while (rclcpp::ok() && !canceled_.load()) {
-        RCLCPP_DEBUG(get_logger(), "Capture...");
+      while (ros::ok() && !canceled_.load()) {
+        ROS_DEBUG("Capture...");
         auto img = camera_->capture();
+
         if (img == nullptr) {
           // Failed capturing image, assume it is temporarily and continue a bit later
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -126,9 +117,9 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         img->header.stamp = stamp;
         img->header.frame_id = camera_frame_id_;
 
-        auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
+        auto ci = std::make_unique<sensor_msgs::CameraInfo>(cinfo_->getCameraInfo());
         if (!checkCameraInfo(*img, *ci)) {
-          *ci = sensor_msgs::msg::CameraInfo{};
+          *ci = sensor_msgs::CameraInfo{};
           ci->height = img->height;
           ci->width = img->width;
         }
@@ -137,54 +128,45 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         ci->header.frame_id = camera_frame_id_;
         publish_next_frame_ = publish_rate_ < 0;
 
-        camera_transport_pub_.publish(*img, *ci);
+        if (use_image_transport_) {
+          camera_transport_pub_.publish(*img, *ci);
+        } else {
+          image_pub_.publish(*img);
+          info_pub_.publish(*ci);
+        }
       }
     }
   };
 }
 
-V4L2Camera::~V4L2Camera()
-{
-  canceled_.store(true);
-  if (capture_thread_.joinable()) {
-    capture_thread_.join();
-  }
-}
-
 void V4L2Camera::createParameters()
 {
   // Node parameters
-  auto output_encoding_description = rcl_interfaces::msg::ParameterDescriptor{};
-  output_encoding_description.description = "ROS image encoding to use for the output image";
-  output_encoding_description.additional_constraints =
-    "Currently supported: 'rgb8', 'yuv422' or 'mono'";
-  output_encoding_ = declare_parameter(
-    "output_encoding", std::string{"rgb8"},
-    output_encoding_description);
+  ROS_INFO("Currently supported: 'rgb8', 'yuv422' or 'mono'");
+  private_nh.param<std::string>("output_encoding",
+                          output_encoding_,
+                          std::string{"rgb8"});
 
   // Camera info parameters
-  auto camera_info_url = declare_parameter("camera_info_url", "");
-  if (get_parameter("camera_info_url", camera_info_url)) {
-    if (cinfo_->validateURL(camera_info_url)) {
-      cinfo_->loadCameraInfo(camera_info_url);
+  private_nh.param<std::string>("camera_info_url",
+                        camera_info_url_,
+                        "");
+
+
+  if (private_nh.getParam("camera_info_url", camera_info_url_)) {
+    if (cinfo_->validateURL(camera_info_url_)) {
+      cinfo_->loadCameraInfo(camera_info_url_);
     } else {
-      RCLCPP_WARN(get_logger(), "Invalid camera info URL: %s", camera_info_url.c_str());
+      ROS_WARN("Invalid camera info URL: %s", camera_info_url_.c_str());
     }
   }
-
-  auto camera_frame_id_description = rcl_interfaces::msg::ParameterDescriptor{};
-  camera_frame_id_description.description = "Frame id inserted in published image";
-  camera_frame_id_description.read_only = true;
-  camera_frame_id_ = declare_parameter<std::string>(
-    "camera_frame_id", "camera",
-    camera_frame_id_description);
-
+  ROS_INFO("Frame id inserted in published image");
+  private_nh.param<std::string>("camera_frame_id",
+                        camera_frame_id_,
+                        "camera");
   // Format parameters
   // Pixel format
   auto const & image_formats = camera_->getImageFormats();
-  auto pixel_format_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
-  pixel_format_descriptor.name = "pixel_format";
-  pixel_format_descriptor.description = "Pixel format (FourCC)";
   auto pixel_format_constraints = std::ostringstream{};
   for (auto const & format : image_formats) {
     pixel_format_constraints <<
@@ -193,16 +175,17 @@ void V4L2Camera::createParameters()
   }
   auto str = pixel_format_constraints.str();
   str = str.substr(0, str.size() - 2);
-  pixel_format_descriptor.additional_constraints = str;
-  auto pixel_format =
-    declare_parameter<std::string>("pixel_format", "YUYV", pixel_format_descriptor);
-  requestPixelFormat(pixel_format);
+  // pixel_format_descriptor.additional_constraints = str;
+
+  ROS_INFO("Pixel format (FourCC)");
+  private_nh.param<std::string>("pixel_format",
+                        pixel_format_,
+                        "YUYV");
+
+  requestPixelFormat(pixel_format_);
 
   // Image size
   auto image_size = ImageSize{};
-  auto image_size_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
-  image_size_descriptor.name = "image_size";
-  image_size_descriptor.description = "Image width & height";
 
   // List available image sizes per format
   auto const & image_sizes = camera_->getImageSizes();
@@ -215,8 +198,7 @@ void V4L2Camera::createParameters()
 
     auto iter = image_sizes.find(format.pixelFormat);
     if (iter == image_sizes.end()) {
-      RCLCPP_ERROR_STREAM(
-        get_logger(),
+      ROS_ERROR_STREAM(
         "No sizes available to create parameter description for format: " << format.description);
       continue;
     }
@@ -241,21 +223,21 @@ void V4L2Camera::createParameters()
     }
   }
 
-  image_size_descriptor.additional_constraints = image_sizes_constraints.str();
-  image_size = declare_parameter<ImageSize>("image_size", {640, 480}, image_size_descriptor);
+  ROS_INFO("Image width & height");
+  private_nh.param<int>("image_size",image_size_width, 640);
+  private_nh.param<int>("image_size",image_size_height, 480);
+  image_size = {image_size_width, image_size_height};
   requestImageSize(image_size);
 
   // Time per frame
   if (camera_->timePerFrameSupported()) {
     auto tpf = camera_->getCurrentTimePerFrame();
-    auto time_per_frame_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
-    time_per_frame_descriptor.name = "time_per_frame";
-    time_per_frame_descriptor.description = "Desired period between successive frames in seconds";
-    time_per_frame_descriptor.additional_constraints =
-      "Length 2 array, with numerator and denominator";
-    auto time_per_frame = declare_parameter<TimePerFrame>(
-      "time_per_frame", {tpf.first, tpf.second},
-      time_per_frame_descriptor);
+
+    ROS_INFO("Desired period between successive frames in seconds");
+    private_nh.param<int>("time_per_frame_first", time_per_frame_first, tpf.first);
+    private_nh.param<int>("time_per_frame_second", time_per_frame_second, tpf.second);
+    TimePerFrame time_per_frame = {static_cast<int64_t>(tpf.first), static_cast<int64_t>(tpf.second)};
+
     requestTimePerFrame(time_per_frame);
   }
 
@@ -272,28 +254,28 @@ void V4L2Camera::createParameters()
 
   for (auto const & c : camera_->getControls()) {
     auto name = toParamName(c.name);
-    auto descriptor = rcl_interfaces::msg::ParameterDescriptor{};
-    descriptor.name = name;
-    descriptor.description = c.name;
     switch (c.type) {
       case ControlType::INT:
         {
           auto current_value = camera_->getControlValue(c.id);
-          auto range = rcl_interfaces::msg::IntegerRange{};
-          range.from_value = c.minimum;
-          range.to_value = c.maximum;
-          descriptor.integer_range.push_back(range);
           if (current_value < c.minimum || c.maximum < current_value) {
             current_value = c.defaultValue;
           }
-          auto value = declare_parameter<int64_t>(name, current_value, descriptor);
+          ROS_INFO_STREAM(c.name);
+          int32_t value;
+          private_nh.param<int32_t>(name,
+                                value,
+                                current_value);
           camera_->setControlValue(c.id, value);
           break;
         }
       case ControlType::BOOL:
         {
-          auto value =
-            declare_parameter<bool>(name, camera_->getControlValue(c.id) != 0, descriptor);
+          ROS_INFO_STREAM(c.name);
+          bool value;
+          private_nh.param<bool>(name,
+                                value,
+                                camera_->getControlValue(c.id) != 0);
           camera_->setControlValue(c.id, value);
           break;
         }
@@ -304,14 +286,16 @@ void V4L2Camera::createParameters()
             sstr << o.first << " - " << o.second << ", ";
           }
           auto str = sstr.str();
-          descriptor.additional_constraints = str.substr(0, str.size() - 2);
-          auto value = declare_parameter<int64_t>(name, camera_->getControlValue(c.id), descriptor);
+          ROS_INFO_STREAM(c.name);
+          int32_t value;
+          private_nh.param<int32_t>(name,
+                                value,
+                                camera_->getControlValue(c.id));
           camera_->setControlValue(c.id, value);
           break;
         }
       default:
-        RCLCPP_WARN(
-          get_logger(),
+        ROS_WARN(
           "Control type not currently supported: %s, for control: %s",
           std::to_string(unsigned(c.type)).c_str(),
           c.name.c_str());
@@ -321,67 +305,21 @@ void V4L2Camera::createParameters()
   }
 
   // Register callback for parameter value setting
-  on_set_parameters_callback_ = add_on_set_parameters_callback(
-    [this](std::vector<rclcpp::Parameter> parameters) -> rcl_interfaces::msg::SetParametersResult {
-      auto result = rcl_interfaces::msg::SetParametersResult();
-      result.successful = true;
-      for (auto const & p : parameters) {
-        result.successful &= handleParameter(p);
-      }
-      return result;
-    });
-}
-
-bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
-{
-  auto name = std::string{param.get_name()};
-  if (control_name_to_id_.find(name) != control_name_to_id_.end()) {
-    switch (param.get_type()) {
-      case rclcpp::ParameterType::PARAMETER_BOOL:
-        return camera_->setControlValue(control_name_to_id_[name], param.as_bool());
-      case rclcpp::ParameterType::PARAMETER_INTEGER:
-        return camera_->setControlValue(control_name_to_id_[name], param.as_int());
-      default:
-        RCLCPP_WARN(
-          get_logger(),
-          "Control parameter type not currently supported: %s, for parameter: %s",
-          std::to_string(unsigned(param.get_type())).c_str(), param.get_name().c_str());
-    }
-  } else if (param.get_name() == "output_encoding") {
-    output_encoding_ = param.as_string();
-    return true;
-  } else if (param.get_name() == "pixel_format") {
-    camera_->stop();
-    auto success = requestPixelFormat(param.as_string());
-    camera_->start();
-    return success;
-  } else if (param.get_name() == "image_size") {
-    camera_->stop();
-    auto success = requestImageSize(param.as_integer_array());
-    camera_->start();
-    return success;
-  } else if (param.get_name() == "time_per_frame") {
-    camera_->stop();
-    auto success = requestTimePerFrame(param.as_integer_array());
-    camera_->start();
-    return success;
-  } else if (param.get_name() == "camera_info_url") {
-    auto camera_info_url = param.as_string();
-    if (cinfo_->validateURL(camera_info_url)) {
-      return cinfo_->loadCameraInfo(camera_info_url);
-    } else {
-      RCLCPP_WARN(get_logger(), "Invalid camera info URL: %s", camera_info_url.c_str());
-      return false;
-    }
-  }
-
-  return false;
+  // on_set_parameters_callback_ = add_on_set_parameters_callback(
+  //   [this](std::vector<rclcpp::Parameter> parameters) -> rcl_interfaces::msg::SetParametersResult {
+  //     auto result = rcl_interfaces::msg::SetParametersResult();
+  //     result.successful = true;
+  //     for (auto const & p : parameters) {
+  //       result.successful &= handleParameter(p);
+  //     }
+  //     return result;
+  //   });
 }
 
 bool V4L2Camera::requestPixelFormat(std::string const & fourcc)
 {
   if (fourcc.size() != 4) {
-    RCLCPP_ERROR(get_logger(), "Invalid pixel format size: must be a 4 character code (FOURCC).");
+    ROS_ERROR("Invalid pixel format size: must be a 4 character code (FOURCC).");
     return false;
   }
 
@@ -400,8 +338,7 @@ bool V4L2Camera::requestPixelFormat(std::string const & fourcc)
 bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
 {
   if (size.size() != 2) {
-    RCLCPP_WARN(
-      get_logger(), "Invalid image size; expected dimensions: 2, actual: %lu", size.size());
+    ROS_WARN("Invalid image size; expected dimensions: 2, actual: %lu", size.size());
     return false;
   }
 
@@ -419,8 +356,8 @@ bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
 bool V4L2Camera::requestTimePerFrame(TimePerFrame const & tpf)
 {
   if (tpf.size() != 2) {
-    RCLCPP_WARN(
-      get_logger(), "Invalid time per frame; expected dimensions: 2, actual: %lu", tpf.size());
+    ROS_WARN(
+      "Invalid time per frame; expected dimensions: 2, actual: %lu", tpf.size());
     return false;
   }
 
@@ -455,6 +392,7 @@ static unsigned char CLIPVALUE(int val)
  * [ B ]   [  1.0   2.041   0.002 ] [ V ]
  *
  */
+
 static void YUV2RGB(
   const unsigned char y, const unsigned char u, const unsigned char v, unsigned char * r,
   unsigned char * g, unsigned char * b)
@@ -503,17 +441,13 @@ static void yuyv2rgb(unsigned char const * YUV, unsigned char * RGB, int NumPixe
   }
 }
 
-sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
+sensor_msgs::ImagePtr V4L2Camera::convert(sensor_msgs::Image& img)
 {
-  RCLCPP_DEBUG(
-    get_logger(),
-    "Converting: %s -> %s", img.encoding.c_str(), output_encoding_.c_str());
-
   // TODO(sander): temporary until cv_bridge and image_proc are available in ROS 2
-  if (img.encoding == sensor_msgs::image_encodings::YUV422_YUY2 &&
+  if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
     output_encoding_ == sensor_msgs::image_encodings::RGB8)
   {
-    auto outImg = std::make_unique<sensor_msgs::msg::Image>();
+    auto outImg = boost::make_shared<sensor_msgs::Image>();
     outImg->width = img.width;
     outImg->height = img.height;
     outImg->step = img.width * 3;
@@ -526,33 +460,33 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
     }
     return outImg;
   } else {
-    RCLCPP_WARN_ONCE(
-      get_logger(),
+    ROS_WARN_ONCE(
       "Conversion not supported yet: %s -> %s", img.encoding.c_str(), output_encoding_.c_str());
     return nullptr;
   }
 }
 
-bool V4L2Camera::checkCameraInfo(
-  sensor_msgs::msg::Image const & img,
-  sensor_msgs::msg::CameraInfo const & ci)
+#ifdef ENABLE_CUDA
+void cudaErrorCheck(const cudaError_t e)
 {
-  return ci.width == img.width && ci.height == img.height;
+  if (e != cudaSuccess) {
+    std::stringstream ss;
+    ss << cudaGetErrorName(e) << " : " << cudaGetErrorString(e);
+    throw std::runtime_error{ss.str()};
+  }
 }
 
-#ifdef ENABLE_CUDA
-sensor_msgs::msg::Image::UniquePtr V4L2Camera::convertOnGpu(sensor_msgs::msg::Image const & img)
+sensor_msgs::ImagePtr V4L2Camera::convertOnGpu(sensor_msgs::Image& img)
 {
   if ((img.encoding != sensor_msgs::image_encodings::YUV422 &&
-       img.encoding != sensor_msgs::image_encodings::YUV422_YUY2) ||
+      img.encoding != sensor_msgs::image_encodings::YUV422_YUY2) ||
       output_encoding_ != sensor_msgs::image_encodings::RGB8) {
-    RCLCPP_WARN_ONCE(
-        get_logger(),
+    ROS_WARN_ONCE(
         "Conversion not supported yet: %s -> %s", img.encoding.c_str(), output_encoding_.c_str());
     return nullptr;
   }
 
-  auto outImg = std::make_unique<sensor_msgs::msg::Image>();
+  auto outImg = boost::make_shared<sensor_msgs::Image>();
   outImg->width = img.width;
   outImg->height = img.height;
   outImg->step = img.width * 3;
@@ -586,8 +520,9 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convertOnGpu(sensor_msgs::msg::Im
                                      dst_dev_->step_bytes,
                                      roi);
   }
+
   if (res != NPP_SUCCESS) {
-    throw std::runtime_error{"NPPI operation failed"};
+    ROS_ERROR("NPP Error: %d", res);
   }
 
   cudaErrorCheck(cudaMemcpy2DAsync(static_cast<void*>(outImg->data.data()),
@@ -603,6 +538,24 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convertOnGpu(sensor_msgs::msg::Im
   return outImg;
 }
 #endif
-}  // namespace v4l2_camera
 
-RCLCPP_COMPONENTS_REGISTER_NODE(v4l2_camera::V4L2Camera)
+void V4L2Camera::publishTimer()
+{
+  this->publish_next_frame_=true;
+}
+
+bool V4L2Camera::checkCameraInfo(
+  sensor_msgs::Image const & img,
+  sensor_msgs::CameraInfo const & ci)
+{
+  return ci.width == img.width && ci.height == img.height;
+}
+
+V4L2Camera::~V4L2Camera()
+{
+  canceled_.store(true);
+  if (capture_thread_.joinable()) {
+    capture_thread_.join();
+  }
+}
+}  // namespace v4l2_camera
