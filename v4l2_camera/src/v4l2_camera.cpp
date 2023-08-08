@@ -62,8 +62,16 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     publish_next_frame_ = true;
   }
   const auto qos = use_sensor_data_qos ? rclcpp::SensorDataQoS() : rclcpp::QoS(10);
-  camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw",
-                                                                   qos.get_rmw_qos_profile());
+
+  use_image_transport_ = declare_parameter("use_image_transport", true);
+
+  if (use_image_transport_) {
+    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw",
+                                                                    qos.get_rmw_qos_profile());
+  } else {
+    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", qos);
+    info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("camera_info", qos);
+  }
 
   // Prepare camera
   auto device_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
@@ -137,7 +145,12 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         ci->header.frame_id = camera_frame_id_;
         publish_next_frame_ = publish_rate_ < 0;
 
-        camera_transport_pub_.publish(*img, *ci);
+        if (use_image_transport_) {
+          camera_transport_pub_.publish(*img, *ci);
+        } else {
+          image_pub_->publish(*img);
+          info_pub_->publish(*ci);
+        }
       }
     }
   };

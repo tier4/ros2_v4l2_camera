@@ -1,0 +1,20 @@
+image_width: 1920
+image_height: 1280
+camera_name: sensing.camera.v4l2_camera_c1
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [1259.5992, 0.0, 963.5829, 0.0, 1362.4233, 638.2993, 0.0, 0.0, 1.0]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-0.18332325, -0.09414895, 0.0013741344, -0.000666355, 0.12925407]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1., 0., 0., 0., 1., 0., 0., 0., 1.]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [1259.5992, 0.0, 963.5829, 0.0, 0.0, 1362.4233, 638.2993, 0.0, 0.0, 0.0, 1.0, 0.0]

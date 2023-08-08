@@ -1,0 +1,6 @@
+/**:
+  ros__parameters:
+    camera_frame_id: "c1"
+    video_device: "/dev/video0"
+    output_encoding: "rgb8"
+    image_size: [1920, 1280]

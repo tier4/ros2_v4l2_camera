@@ -1,0 +1,16 @@
+<launch>
+	<let name="image_topic" value="image_raw"/>
+	<let name="use_sensor_data_qos" value="false"/>
+	<let name="use_intra_process" value="False"/>
+	<let name="v4l2_camera_param_path" value="$(find-pkg-share v4l2_camera)/launch/v4l2_camera.param.yaml"/>
+	<let name="camera_info_url" value="file://$(find-pkg-share v4l2_camera)/launch/c1_camera_info.yaml"/>
+	<!--  Launch v4l2_camera inside the container node  -->
+	<include file="$(find-pkg-share v4l2_camera)/launch/v4l2_camera.launch.py">
+		<arg name="image_topic" value="$(var image_topic)"/>
+		<arg name="camera_name" value="c1"/>
+		<arg name="v4l2_camera_param_path" value="$(var v4l2_camera_param_path)"/>
+		<arg name="camera_info_url" value="$(var camera_info_url)"/>
+		<arg name="use_sensor_data_qos" value="$(var use_sensor_data_qos)"/>
+		<arg name="use_intra_process" value="$(var use_intra_process)"/>
+	</include>
+</launch>
