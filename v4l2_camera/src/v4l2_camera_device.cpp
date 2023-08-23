@@ -235,7 +235,7 @@ sensor_msgs::ImagePtr V4l2CameraDevice::capture()
    if (use_v4l2_buffer_timestamps_) {
      buf_stamp = ros::Time(static_cast<double>(buf.timestamp.tv_sec)
                               + static_cast<double>(buf.timestamp.tv_usec) * 1e-6
-                              + static_cast<double>(getTimeOffset() + tsc_offset_) * 1e-9);
+                              + static_cast<double>(getTimeOffset() - tsc_offset_) * 1e-9);
 
    }
    else {
