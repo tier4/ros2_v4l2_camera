@@ -17,6 +17,7 @@
   <depend>libopencv-dev</depend>
   <depend>cv_bridge</depend>
   <depend>libturbojpeg</depend>
+  <depend>image_geometry</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
