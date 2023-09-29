@@ -503,6 +503,28 @@ static void yuyv2rgb(unsigned char const * YUV, unsigned char * RGB, int NumPixe
   }
 }
 
+static void uyvy2rgb(unsigned char const * YUV, unsigned char * RGB, int NumPixels)
+{
+  int i, j;
+  unsigned char y0, y1, u, v;
+  unsigned char r, g, b;
+
+  for (i = 0, j = 0; i < (NumPixels << 1); i += 4, j += 6) {
+    u = YUV[i + 0];
+    y0 = YUV[i + 1];
+    v = YUV[i + 2];
+    y1 = YUV[i + 3];
+    YUV2RGB(y0, u, v, &r, &g, &b);
+    RGB[j + 0] = r;
+    RGB[j + 1] = g;
+    RGB[j + 2] = b;
+    YUV2RGB(y1, u, v, &r, &g, &b);
+    RGB[j + 3] = r;
+    RGB[j + 4] = g;
+    RGB[j + 5] = b;
+  }
+}
+
 sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
 {
   RCLCPP_DEBUG(
@@ -525,7 +547,22 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
         outImg->width);
     }
     return outImg;
-  } else {
+  } else if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
+    output_encoding_ == sensor_msgs::image_encodings::RGB8)
+  {
+    auto outImg = std::make_unique<sensor_msgs::msg::Image>();
+    outImg->width = img.width;
+    outImg->height = img.height;
+    outImg->step = img.width * 3;
+    outImg->encoding = output_encoding_;
+    outImg->data.resize(outImg->height * outImg->step);
+    for (auto i = 0u; i < outImg->height; ++i) {
+      uyvy2rgb(
+        img.data.data() + i * img.step, outImg->data.data() + i * outImg->step,
+        outImg->width);
+    }
+    return outImg;
+  }else {
     RCLCPP_WARN_ONCE(
       get_logger(),
       "Conversion not supported yet: %s -> %s", img.encoding.c_str(), output_encoding_.c_str());
