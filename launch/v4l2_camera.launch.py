@@ -71,6 +71,7 @@ def launch_setup(context, *args, **kwargs):
                     "camera_info_url": LaunchConfiguration("camera_info_url"),
                     "use_sensor_data_qos": LaunchConfiguration("use_sensor_data_qos"),
                     "publish_rate": LaunchConfiguration("publish_rate"),
+                    "use_v4l2_buffer_timestamps": LaunchConfiguration("use_v4l2_buffer_timestamps")
                 },
             ],
             extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
@@ -126,6 +127,11 @@ def generate_launch_description():
                    'otherwise be RELIABLE')
     add_launch_arg('publish_rate', "-1.0",
                    description='publish frame number per second. value <= 0 means no limitation on publish rate')
+    add_launch_arg('use_v4l2_buffer_timestamps', 'True',
+                   description='If true, topic timestamp will be taken from v4l2_buffer, which is '
+                   'stamped at earlier stage of v4l2 processing. In some cases, such as cameras are '
+                   'connected via USB, v4l2 buffer timestamp may return inaccurate'
+                   'timestamp, in which case this flag is recommended to be false. ')
 
     return LaunchDescription(
         [
