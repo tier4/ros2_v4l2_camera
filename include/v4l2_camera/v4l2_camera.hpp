@@ -118,6 +118,7 @@ private:
   rclcpp::TimerBase::SharedPtr image_pub_timer_;
 
   bool publish_next_frame_;
+  bool use_image_transport_;
 
 #ifdef ENABLE_CUDA
   // Memory region to communicate with GPU
