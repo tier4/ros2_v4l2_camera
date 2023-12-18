@@ -119,8 +119,8 @@ repository. These depend on the OpenCV facilities provided by the
 get these:
 
     cd path/to/workspace
-    git clone https://github.com/ros-perception/vision_opencv.git --branch ros2 src/vision_opencv
-    git clone https://github.com/ros-perception/image_transport_plugins.git --branch ros2 src/image_transport_plugins
+    git clone https://github.com/ros-perception/vision_opencv.git --branch $ROS_DISTRO src/vision_opencv
+    git clone https://github.com/ros-perception/image_transport_plugins.git --branch $ROS_DISTRO src/image_transport_plugins
 
 ### Building: Ubuntu
 
