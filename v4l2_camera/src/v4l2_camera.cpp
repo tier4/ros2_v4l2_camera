@@ -444,8 +444,9 @@ static void yuyv2rgb(unsigned char const * YUV, unsigned char * RGB, int NumPixe
 sensor_msgs::ImagePtr V4L2Camera::convert(sensor_msgs::Image& img)
 {
   // TODO(sander): temporary until cv_bridge and image_proc are available in ROS 2
-  if (img.encoding == sensor_msgs::image_encodings::YUV422 &&
-    output_encoding_ == sensor_msgs::image_encodings::RGB8)
+  if ((img.encoding == sensor_msgs::image_encodings::YUV422
+       || img.encoding == sensor_msgs::image_encodings::YUV422_YUY2) 
+      && output_encoding_ == sensor_msgs::image_encodings::RGB8)
   {
     auto outImg = boost::make_shared<sensor_msgs::Image>();
     outImg->width = img.width;
