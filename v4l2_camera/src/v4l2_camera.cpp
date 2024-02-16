@@ -87,7 +87,7 @@ V4L2Camera::V4L2Camera(ros::NodeHandle node, ros::NodeHandle private_nh)
 
   // Start the camera
   if (!camera_->start()) {
-    return;
+    exit(1);
   }
 
   // Start capture thread
