@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "v4l2_camera/v4l2_camera.hpp"
+#ifndef V4L2_CAMERA__YUV422_YUY2_IMAGE_ENCODINGS_HPP_
+#define V4L2_CAMERA__YUV422_YUY2_IMAGE_ENCODINGS_HPP_
 
-#include <memory>
+#include <cstdlib>
+#include <stdexcept>
+#include <string>
 
-int main(int argc, char ** argv)
+namespace sensor_msgs
 {
-  rclcpp::init(argc, argv);
+  namespace image_encodings
+  {
+    const std::string YUV422_YUY2="yuv422_yuy2";
+  }  // namespace image_encodings
+}  // namespace sensor_msgs
 
-  auto node = std::make_shared<v4l2_camera::V4L2Camera>(rclcpp::NodeOptions{});
-
-  rclcpp::spin(node);
-  rclcpp::shutdown();
-  node = nullptr;
-
-  return 0;
-}
+#endif  // V4L2_CAMERA__V4L2_CAMERA_HPP_
