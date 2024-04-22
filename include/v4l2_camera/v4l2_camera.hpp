@@ -120,6 +120,9 @@ private:
   bool publish_next_frame_;
   bool use_image_transport_;
 
+  diagnostic_updater::Updater diagnostic_updater_{this};
+  rclcpp::Time last_capture_stamp_;
+
 #ifdef ENABLE_CUDA
   // Memory region to communicate with GPU
   std::allocator<GPUMemoryManager> allocator_;
@@ -144,7 +147,7 @@ private:
     sensor_msgs::msg::Image const & img,
     sensor_msgs::msg::CameraInfo const & ci);
 };
-
+  void updateDiagnostics(diagnostic_updater::DiagnosticStatusWrapper & stat);
 }  // namespace v4l2_camera
 
 #endif  // V4L2_CAMERA__V4L2_CAMERA_HPP_

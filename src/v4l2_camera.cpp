@@ -14,6 +14,7 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
+#include <diagnostic_updater/diagnostic_updater.hpp>
 #include <rclcpp/qos.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 
@@ -118,7 +119,10 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           // Failed capturing image, assume it is temporarily and continue a bit later
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
           continue;
+        }else{
+          last_capture_stamp_ = this->now();
         }
+
         if(publish_next_frame_ == false){
           continue;
         }
@@ -154,6 +158,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       }
     }
   };
+  diagnostic_updater_.setHardwareID(get_name());
+  diagnostic_updater_.add("capture_status", this, &V4L2Camera::updateDiagnostics);
 }
 
 V4L2Camera::~V4L2Camera()
@@ -588,6 +594,16 @@ bool V4L2Camera::checkCameraInfo(
   sensor_msgs::msg::CameraInfo const & ci)
 {
   return ci.width == img.width && ci.height == img.height;
+}
+
+void  V4L2Camera::updateDiagnostics(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
+  const double capture_elapsed_time = (this->now() - last_capture_stamp_).seconds();
+  if (capture_elapsed_time < 1.0) {
+    stat.summary(DiagnosticStatus::OK, "OK");
+  } else {}
+    stat.summary(DiagnosticStatus::ERROR, "ERROR");
+  }
 }
 
 #ifdef ENABLE_CUDA

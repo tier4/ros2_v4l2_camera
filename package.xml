@@ -20,7 +20,8 @@
   <depend>sensor_msgs</depend>
   <depend>image_transport</depend>
   <depend>camera_info_manager</depend>
-  
+  <depend>diagnostic_updater</depend>
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
