@@ -14,7 +14,6 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
-#include <diagnostic_updater/diagnostic_updater.hpp>
 #include <rclcpp/qos.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 
@@ -596,12 +595,13 @@ bool V4L2Camera::checkCameraInfo(
   return ci.width == img.width && ci.height == img.height;
 }
 
-void  V4L2Camera::updateDiagnostics(diagnostic_updater::DiagnosticStatusWrapper & stat)
+void V4L2Camera::updateDiagnostics(diagnostic_updater::DiagnosticStatusWrapper & stat)
 {
+  using diagnostic_msgs::msg::DiagnosticStatus;
   const double capture_elapsed_time = (this->now() - last_capture_stamp_).seconds();
   if (capture_elapsed_time < 1.0) {
     stat.summary(DiagnosticStatus::OK, "OK");
-  } else {}
+  } else {
     stat.summary(DiagnosticStatus::ERROR, "ERROR");
   }
 }
