@@ -118,8 +118,6 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           // Failed capturing image, assume it is temporarily and continue a bit later
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
           continue;
-        }else{
-          last_capture_stamp_ = this->now();
         }
 
         if(publish_next_frame_ == false){
@@ -147,7 +145,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         ci->header.stamp = stamp;
         ci->header.frame_id = camera_frame_id_;
         publish_next_frame_ = publish_rate_ < 0;
-
+        capture_rate_ = 1.0 / (rclcpp::Time{stamp} - last_capture_stamp_).seconds();
+        last_capture_stamp_ = rclcpp::Time{stamp};
         if (use_image_transport_) {
           camera_transport_pub_.publish(*img, *ci);
         } else {
@@ -598,12 +597,23 @@ bool V4L2Camera::checkCameraInfo(
 void V4L2Camera::updateDiagnostics(diagnostic_updater::DiagnosticStatusWrapper & stat)
 {
   using diagnostic_msgs::msg::DiagnosticStatus;
-  const double capture_elapsed_time = (this->now() - last_capture_stamp_).seconds();
-  if (capture_elapsed_time < 1.0) {
-    stat.summary(DiagnosticStatus::OK, "OK");
-  } else {
-    stat.summary(DiagnosticStatus::ERROR, "ERROR");
+
+  auto current_stamp = this->now();
+  if(last_capture_stamp_ == rclcpp::Time(0) ||  (this->now() - last_capture_stamp_).seconds() > 5.0){
+    stat.summary(DiagnosticStatus::STALE, "No capture yet");
+    return;
   }
+
+  if (capture_rate_ < 1.0) {
+    stat.summary(DiagnosticStatus::ERROR, "ERROR");
+  } else if (capture_rate_ < 5.0) {
+    stat.summary(DiagnosticStatus::WARN, "WARN");
+  } else {
+    stat.summary(DiagnosticStatus::ERROR, "OK");
+  }
+  stat.addf("Capture rate", "%.2f Hz", capture_rate_);
+  stat.addf("last_capture_stamp", "%.2f", last_capture_stamp_.seconds());
+  stat.addf("now", "%.2f", current_stamp.seconds());
 }
 
 #ifdef ENABLE_CUDA

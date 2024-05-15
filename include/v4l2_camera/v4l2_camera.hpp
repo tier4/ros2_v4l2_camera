@@ -122,7 +122,8 @@ private:
   bool use_image_transport_;
 
   diagnostic_updater::Updater diagnostic_updater_{this};
-  rclcpp::Time last_capture_stamp_;
+  rclcpp::Time last_capture_stamp_{rclcpp::Time(0)};
+  double capture_rate_{0.0};
 
 #ifdef ENABLE_CUDA
   // Memory region to communicate with GPU
