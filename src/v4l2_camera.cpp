@@ -105,6 +105,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
   diagnostic_updater_.setHardwareID(get_name());
   diagnostic_updater_.add("capture_status", this, &V4L2Camera::updateDiagnostics);
+  diagnostic_updater_.setPeriod(0.1);
 
   // Start the camera
   if (!camera_->start()) {
