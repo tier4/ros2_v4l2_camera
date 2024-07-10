@@ -71,6 +71,8 @@ def launch_setup(context, *args, **kwargs):
                     "camera_info_url": LaunchConfiguration("camera_info_url"),
                     "use_sensor_data_qos": LaunchConfiguration("use_sensor_data_qos"),
                     "publish_rate": LaunchConfiguration("publish_rate"),
+                    "use_v4l2_buffer_timestamps": LaunchConfiguration("use_v4l2_buffer_timestamps"),
+                    "use_image_transport": LaunchConfiguration("use_image_transport"),
                 },
             ],
             extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
@@ -126,6 +128,12 @@ def generate_launch_description():
                    'otherwise be RELIABLE')
     add_launch_arg('publish_rate', "-1.0",
                    description='publish frame number per second. value <= 0 means no limitation on publish rate')
+    add_launch_arg('use_v4l2_buffer_timestamps', True,
+                   description='flag to use v4l2 buffer timestamps. '
+                   'If true, the image timestamps will be applied from the v4l2 buffer, '
+                   'otherwise, will be the system time when the buffer is read')
+    add_launch_arg('use_image_transport', True,
+                   description='flag to launch image_transport node')
 
     return LaunchDescription(
         [
