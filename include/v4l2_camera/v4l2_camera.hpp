@@ -35,6 +35,10 @@
 #ifdef ENABLE_CUDA
 #include <nppdefs.h>
 #include <nppi_support_functions.h>
+#include <cuda_blackboard/cuda_adaptation.hpp>
+#include <cuda_blackboard/cuda_blackboard_publisher.hpp>
+#include <cuda_blackboard/cuda_blackboard_subscriber.hpp>
+#include <cuda_blackboard/cuda_image.hpp>
 #endif
 
 namespace v4l2_camera
@@ -98,6 +102,9 @@ private:
   // Publisher used for intra process comm
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr info_pub_;
+  #ifdef ENABLE_CUDA
+  std::unique_ptr<cuda_blackboard::CudaBlackboardPublisher<cuda_blackboard::CudaImage>> blackboard_image_pub_;
+  #endif
 
   // Publisher used for inter process comm
   image_transport::CameraPublisher camera_transport_pub_;
