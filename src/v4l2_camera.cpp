@@ -33,6 +33,10 @@
 #ifdef ENABLE_CUDA
 #include <cuda.h>
 #include <nppi_color_conversion.h>
+#include <cuda_blackboard/cuda_adaptation.hpp>
+#include <cuda_blackboard/cuda_blackboard_publisher.hpp>
+#include <cuda_blackboard/cuda_blackboard_subscriber.hpp>
+#include <cuda_blackboard/cuda_image.hpp>
 #endif
 
 using namespace std::chrono_literals;
@@ -69,7 +73,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw",
                                                                     qos.get_rmw_qos_profile());
   } else {
-    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", qos);
+    blackboard_image_pub_ = std::make_unique<cuda_blackboard::CudaBlackboardPublisher<cuda_blackboard::CudaImage>>(*this, "image_raw");
     info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("camera_info", qos);
   }
 
@@ -148,7 +152,9 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         if (use_image_transport_) {
           camera_transport_pub_.publish(*img, *ci);
         } else {
-          image_pub_->publish(std::move(img));
+          // image_pub_->publish(std::move(img));
+          auto cuda_image_ptr = std::make_unique<cuda_blackboard::CudaImage>(*img);
+          blackboard_image_pub_->publish(std::move(cuda_image_ptr));
           info_pub_->publish(std::move(ci));
         }
       }

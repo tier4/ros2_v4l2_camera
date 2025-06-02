@@ -51,7 +51,8 @@ ament_target_dependencies(v4l2_camera
   "rclcpp"
   "rclcpp_components"
   "image_transport"
-  "camera_info_manager")
+  "camera_info_manager"
+  "cuda_blackboard")
 
 target_compile_options(v4l2_camera PRIVATE -Werror)
 
