@@ -84,7 +84,7 @@ static void diagnoseStreamLiveness(
     diagnostic_updater::DiagnosticStatusWrapper &stat,
     const std::optional<uint32_t> &sequence, uint32_t &max_sequence_value,
     const std::optional<timeval> &raw_timestamp, int64_t &max_timestamp_value,
-    bool &is_frame_updated, std::mutex& mtx)
+    std::mutex& mtx)
 {
   std::lock_guard<std::mutex> lock(mtx);
   if (!sequence || !raw_timestamp) {
@@ -95,26 +95,12 @@ static void diagnoseStreamLiveness(
 
   int64_t raw_timestamp_value = static_cast<int64_t>(raw_timestamp.value().tv_sec) * 1e9
                                 + static_cast<int64_t>(raw_timestamp.value().tv_usec) * 1e3;
-
-  auto is_error_condition = [&is_frame_updated](auto& lhs, auto& rhs){
-    bool compare_result;
-    if (is_frame_updated) {
-      // If frame is updated, LHS should be greater than RHS,
-      // so error condition will be the logical NOT.
-      compare_result = (lhs <= rhs);
-    } else {
-      // If frame is not updated yet, LHS and RHS value may be the same
-      compare_result = (lhs < rhs);
-    }
-    return compare_result;
-  };
-
-  if (is_error_condition(sequence.value(), max_sequence_value)) {
+  if (sequence <= max_sequence_value) {
     // sequence should increase monotonically
     stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
                  "Invalid sequence value is detected");
     stat.add("Stream liveness", "ERROR");
-  } else if (is_error_condition(raw_timestamp_value, max_timestamp_value)) {
+  } else if (raw_timestamp_value <= max_timestamp_value) {
     // raw timestamp should also increase monotonically
     stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
                  "Invalid timestamp value is detected");
@@ -130,8 +116,6 @@ static void diagnoseStreamLiveness(
   stat.addf("Sequence", "%u", sequence);
   stat.addf("Raw timestamp", "%lu", raw_timestamp_value);
 
-  // reset flag
-  is_frame_updated = false;
 }  // static void diagnoseStreamLiveness
 
 V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
@@ -243,17 +227,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           "rate bound check");
       diag_composer_->addTask(&rate_bound_status);
 
-      double target_frequency = publish_rate_;
-      if (target_frequency < 0) {
-        if (std::abs(time_per_frame_.value()[1]) < std::numeric_limits<double>::epsilon() * 1e2) {
-          // time_per_frame_ may be [0, 0] by default in some environments
-          // In that case, diagnostics will be published at a rate between the min and max OK rate values
-          target_frequency = (min_ok_rate_.value() + max_ok_rate_.value()) / 2;
-        } else {
-          target_frequency =
-              static_cast<double>(time_per_frame_.value()[1]) / time_per_frame_.value()[0];
-        }
-      }
+      auto target_frequency = static_cast<double>(time_per_frame_.value()[1]) / time_per_frame_.value()[0];
       diag_updater_->setPeriod(1./target_frequency);  // align diag rate and ideal topic rate
 
       bool is_v4l2_buffer_flag_error_detected = true;
@@ -268,12 +242,11 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       uint32_t max_sequence_value = 0;
       std::optional<timeval> raw_timestamp{};
       int64_t max_timestamp_value = 0;
-      bool is_frame_updated = false;
       diagnostic_updater::FunctionDiagnosticTask stream_liveness_check_diag(
           "stream liveness check", std::bind(&diagnoseStreamLiveness, std::placeholders::_1,
                                              std::cref(sequence), std::ref(max_sequence_value),
                                              std::cref(raw_timestamp), std::ref(max_timestamp_value),
-                                             std::ref(is_frame_updated), std::ref(lock_)));
+                                             std::ref(lock_)));
 
       diag_composer_->addTask(&stream_liveness_check_diag);
       this->diag_updater_->add(*diag_composer_);
@@ -285,7 +258,6 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         {
           std::lock_guard<std::mutex> lock(lock_);
           std::tie(img, is_v4l2_buffer_flag_error_detected, sequence, raw_timestamp) = camera_->capture();
-          is_frame_updated = true;
         }
         if (img == nullptr) {
           // Failed capturing image, assume it is temporarily and continue a bit later
