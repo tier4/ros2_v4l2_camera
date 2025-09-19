@@ -47,7 +47,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Prepare publisher
   // This should happen before registering on_set_parameters_callback,
   // else transport plugins will fail to declare their parameters
-  bool use_sensor_data_qos = declare_parameter("use_sensor_data_qos", false);
+  declare_parameter("use_sensor_data_qos", false);
   publish_rate_ = declare_parameter("publish_rate", -1.0);
   if(std::abs(publish_rate_) < std::numeric_limits<double>::epsilon()){
     RCLCPP_WARN(get_logger(), "Invalid publish_rate = 0. Use default value -1 instead");
@@ -61,7 +61,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   else{
     publish_next_frame_ = true;
   }
-  const auto qos = use_sensor_data_qos ? rclcpp::SensorDataQoS() : rclcpp::QoS(10);
+  const auto qos = rclcpp::QoS(10);
 
   use_image_transport_ = declare_parameter("use_image_transport", true);
 
