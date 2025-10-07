@@ -18,6 +18,7 @@
 #include <sensor_msgs/image_encodings.hpp>
 
 #include <fcntl.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
@@ -144,6 +145,18 @@ bool V4l2CameraDevice::open()
   return true;
 }
 
+bool V4l2CameraDevice::close()
+{
+  stop();
+  if (::close(fd_) < 0) {
+    auto msg = std::ostringstream{};
+    msg << "Failed closing device " << device_ << ": " << strerror(errno) << " (" << errno << ")";
+    RCLCPP_ERROR(rclcpp::get_logger("v4l2_camera"), "%s", msg.str().c_str());
+    return false;
+  }
+  return true;
+}
+
 bool V4l2CameraDevice::start()
 {
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Starting camera");
@@ -191,13 +204,6 @@ bool V4l2CameraDevice::stop()
     return false;
   }
 
-  // De-initialize buffers
-  for (auto const & buffer : buffers_) {
-    munmap(buffer.start, buffer.length);
-  }
-
-  buffers_.clear();
-
   auto req = v4l2_requestbuffers{};
 
   // Free all buffers
@@ -205,6 +211,13 @@ bool V4l2CameraDevice::stop()
   req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   req.memory = V4L2_MEMORY_MMAP;
   ioctl(fd_, VIDIOC_REQBUFS, &req);
+
+  // De-initialize buffers
+  for (auto const & buffer : buffers_) {
+    munmap(buffer.start, buffer.length);
+  }
+
+  buffers_.clear();
 
   return true;
 }

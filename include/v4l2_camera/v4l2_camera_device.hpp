@@ -39,6 +39,7 @@ public:
   explicit V4l2CameraDevice(std::string device, bool use_v4l2_buffer_timestamps, rclcpp::Duration timestamp_offset_duration);
 
   bool open();
+  bool close();
   bool start();
   bool stop();
 
