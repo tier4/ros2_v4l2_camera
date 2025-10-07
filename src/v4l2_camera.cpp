@@ -115,7 +115,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Start capture thread
   capture_thread_ = std::thread{
     [this]() -> void {
-      while (rclcpp::ok() && !canceled_.load()) {
+      while (!canceled_.load()) {
         RCLCPP_DEBUG(get_logger(), "Capture...");
         auto img = camera_->capture();
         if (img == nullptr) {
