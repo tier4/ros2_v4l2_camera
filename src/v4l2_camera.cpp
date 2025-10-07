@@ -170,6 +170,7 @@ V4L2Camera::~V4L2Camera()
   if (capture_thread_.joinable()) {
     capture_thread_.join();
   }
+  camera_->close();
 }
 
 void V4L2Camera::createParameters()
