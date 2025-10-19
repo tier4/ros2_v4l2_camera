@@ -30,6 +30,8 @@
 #include <string>
 #include <variant>
 
+#include <v4l2_camera/hysteresis_state_machine.hpp>
+
 namespace custom_diagnostic_tasks
 {
 /**
@@ -54,48 +56,6 @@ struct RateBoundStatusParam
  */
 class RateBoundStatus : public diagnostic_updater::DiagnosticTask
 {
-private:
-  // Helper struct to express state machine nodes
-  struct StateBase
-  {
-    StateBase(const unsigned char lv, const std::string m)
-        : level(lv), num_observations(1), msg(m) {}
-
-    unsigned char level;
-    size_t num_observations;
-    std::string msg;
-  };
-
-  struct Stale : public StateBase
-  {
-    Stale()
-        : StateBase(diagnostic_msgs::msg::DiagnosticStatus::STALE,
-                    "Topic has not been received yet") {}
-  };
-
-  struct Ok : public StateBase
-  {
-    Ok()
-        : StateBase(diagnostic_msgs::msg::DiagnosticStatus::OK,
-                    "Rate is reasonable") {}
-  };
-
-  struct Warn : public StateBase
-  {
-    Warn()
-        : StateBase(diagnostic_msgs::msg::DiagnosticStatus::WARN,
-                    "Rate is within warning range") {}
-  };
-
-  struct Error : public StateBase
-  {
-    Error()
-        : StateBase(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
-                    "Rate is out of valid range") {}
-  };
-
-  using StateHolder = std::variant<Stale, Ok, Warn, Error>;
-
  public:
   /**
    * \brief Constructs RateBoundstatus, which inherits diagnostic_updater::DiagnosticTask.
@@ -106,7 +66,7 @@ private:
    * \param num_frame_transition The number of the successive observations for the status
    * transition. E.g., the status will not be changed from OK to WARN until successive
    * `num_frame_transition` WARNs are observed.
-   * \param immediate_error_report If true (default), errors related to the rate bounds will be
+   * \param immediate_error_report If true, errors related to the rate bounds will be
    * reported immediately once observed; otherwise, the hysteresis damping method using
    * `num_frame_transition` will be adopted
    * \param name The arbitrary string to be assigned for this diagnostic task.
@@ -116,12 +76,15 @@ private:
                   const RateBoundStatusParam& ok_params,
                   const RateBoundStatusParam& warn_params,
                   const size_t num_frame_transition = 1,
-                  const bool immediate_error_report = true,
+                  const bool immediate_error_report = false,
+                  const bool immediate_relax_state = true,
                   const std::string& name = "rate bound check")
       : DiagnosticTask(name), ok_params_(ok_params), warn_params_(warn_params),
         num_frame_transition_(num_frame_transition),
-        immediate_error_report_(immediate_error_report), zero_seen_(false),
-        candidate_state_(Stale{}), current_state_(Stale{})
+        zero_seen_(false),
+        hysteresys_state_machine_(num_frame_transition, immediate_error_report,
+                                  immediate_relax_state),
+        current_state_(diagnostic_msgs::msg::DiagnosticStatus::STALE)
   {
     if (num_frame_transition < 1) {
       num_frame_transition_ = 1;
@@ -194,16 +157,16 @@ private:
     std::unique_lock<std::mutex> lock(lock_);
 
     // classify the current observation
-    StateHolder frame_result;
+    DiagnosticStatus_t frame_result;
     if (!frequency_ || zero_seen_) {
-      frame_result.emplace<Stale>();
+      frame_result = diagnostic_msgs::msg::DiagnosticStatus::STALE;
     } else {
       if (is_ok(frequency_.value())) {
-        frame_result.emplace<Ok>();
+        frame_result = diagnostic_msgs::msg::DiagnosticStatus::OK;
       } else if (is_warn(frequency_.value())) {
-        frame_result.emplace<Warn>();
+        frame_result = diagnostic_msgs::msg::DiagnosticStatus::WARN;
       } else {
-        frame_result.emplace<Error>();
+        frame_result = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
       }
     }
 
@@ -216,7 +179,7 @@ private:
       double freq_from_prev_tick = 1. / delta;
       // If the latest update too older than warn_params_ criteria, frame_result fires error
       if (freq_from_prev_tick < warn_params_.min_frequency) {
-        frame_result.emplace<Error>();
+        frame_result = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
         is_valid_observation = false;
         frequency_ = freq_from_prev_tick;
         auto max_frame_period_s = 1. / warn_params_.min_frequency;
@@ -225,46 +188,28 @@ private:
       }
     }
 
-    // If the classify result is same as previous one, count the number of observation
-    // Otherwise, update candidate
-    if (candidate_state_.index() == frame_result.index() &&
-        candidate_state_.index() != current_state_.index()) {
-      // if result has the same status as candidate but differenct from current
-      std::visit([](auto& s){
-        s.num_observations += 1;
-      }, candidate_state_);
-    } else {
-      candidate_state_ = frame_result;
+    // Update state using hysteresis
+    current_state_ = hysteresys_state_machine_.update_state(frame_result, current_state_);
+    if (!is_valid_observation && num_frame_skipped >= num_frame_transition_) {
+      current_state_ = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     }
 
-    // Update the current state if
-    // - immediate error report is required and the observed state is error
-    // - Or the same state is observed multiple times
-    if ((immediate_error_report_ && std::holds_alternative<Error>(candidate_state_)) ||
-        (is_valid_observation && get_num_observations(candidate_state_) >= num_frame_transition_) ||
-        (!is_valid_observation && num_frame_skipped >= num_frame_transition_)) {
-      current_state_ = candidate_state_;
-      std::visit([](auto& s) {
-        s.num_observations = 1;
-      }, candidate_state_);
-    }
-
-    stat.summary(get_level(current_state_), get_msg(current_state_));
+    stat.summary(current_state_, generate_msg(current_state_));
 
     std::stringstream ss;
     ss << std::fixed << std::setprecision(2) << frequency_.value_or(0.0);
     stat.add("Publish rate", ss.str());
 
     ss.str(""); // reset contents
-    ss << get_level_string(get_level(current_state_));
+    ss << get_level_string(current_state_);
     stat.add("Effective rate status", ss.str());
 
     ss.str(""); // reset contents
-    ss << get_level_string(get_level(candidate_state_));
+    ss << get_level_string(hysteresys_state_machine_.get_candidate_level());
     stat.add("Candidate rate status", ss.str());
 
     ss.str(""); // reset contents
-    ss << get_num_observations(candidate_state_);
+    ss << hysteresys_state_machine_.get_candidate_num_observation();
     stat.add("Candidate status observed frames", ss.str());
 
     ss.str("");  // reset contents
@@ -300,14 +245,13 @@ protected:
   RateBoundStatusParam ok_params_;
   RateBoundStatusParam warn_params_;
   size_t num_frame_transition_;
-  bool immediate_error_report_;
   bool zero_seen_;
   std::optional<double> frequency_;
   std::optional<double> previous_frame_timestamp_;
   std::mutex lock_;
 
-  StateHolder candidate_state_;
-  StateHolder current_state_;
+  HysteresisStateMachine hysteresys_state_machine_;
+  DiagnosticStatus_t current_state_;
 
   std::shared_ptr<rclcpp::Clock> clock_;
 
@@ -315,31 +259,26 @@ protected:
     return clock_->now().seconds();
   }
 
-  static unsigned char get_level(const StateHolder& state) {
-    return std::visit([](const auto& s){return s.level;}, state);
-  }
-
-  static size_t get_num_observations(const StateHolder& state) {
-    return std::visit([](const auto& s){return s.num_observations;}, state);
-  }
-
-  static std::string get_msg(const StateHolder& state) {
-    return std::visit([](const auto& s){return s.msg;}, state);
-  }
-
-  static std::string get_level_string(unsigned char level) {
-    switch(level) {
+  static std::string generate_msg(const DiagnosticStatus_t& state) {
+    std::string ret;
+    switch(state) {
       case diagnostic_msgs::msg::DiagnosticStatus::OK:
-        return "OK";
+        ret = "Rate is reasonable";
+        break;
       case diagnostic_msgs::msg::DiagnosticStatus::WARN:
-        return "WARN";
+        ret = "Rate is within warning range";
+        break;
       case diagnostic_msgs::msg::DiagnosticStatus::ERROR:
-        return "ERROR";
+        ret = "Rate is out of valid range";
+        break;
       case diagnostic_msgs::msg::DiagnosticStatus::STALE:
-        return "STALE";
+        ret = "Topic has not been received yet";
+        break;
       default:
-        return "UNDEFINED";
+        ret = "Undefined state";
+        break;
     }
+    return ret;
   }
 
 };  // class RateBoundStatus
