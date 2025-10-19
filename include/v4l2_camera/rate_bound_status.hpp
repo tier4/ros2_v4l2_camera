@@ -38,11 +38,11 @@ namespace custom_diagnostic_tasks
  */
 struct RateBoundStatusParam
 {
-  RateBoundStatusParam(const double min_freq, const double max_freq)
+  RateBoundStatusParam(const double min_freq, const std::optional<double> max_freq = std::nullopt)
       : min_frequency(min_freq), max_frequency(max_freq){}
 
   double min_frequency;
-  double max_frequency;
+  std::optional<double> max_frequency;
 };
 
 /**
@@ -128,8 +128,7 @@ private:
     }
 
     // Confirm `warn_params` surely has wider range than `ok_params`
-    if (warn_params_.min_frequency >= ok_params_.min_frequency ||
-      ok_params_.max_frequency >= warn_params_.max_frequency) {
+    if (warn_params_.min_frequency >= ok_params_.min_frequency) {
       throw std::runtime_error(
           "Invalid range parameters were detected. warn_params should specify a range "
           "that includes a range of ok_params.");
@@ -167,6 +166,26 @@ private:
     previous_frame_timestamp_ = stamp;
   }
 
+  bool is_ok(double observation) {
+    bool result = ok_params_.min_frequency < observation;
+    if (ok_params_.max_frequency) {
+      // If the max_frequency is defined, consider the upper bound
+      result = result && (observation < ok_params_.max_frequency);
+    }
+    return result;
+  }
+
+  bool is_warn(double observation) {
+    bool result = (warn_params_.min_frequency <= observation &&
+                   observation <= ok_params_.min_frequency);
+    if (ok_params_.max_frequency && warn_params_.max_frequency) {
+      // If the max_frequency is defined, consider the upper bound
+      result = result || (ok_params_.max_frequency <= observation &&
+                          observation <= warn_params_.max_frequency);
+    }
+    return result;
+  }
+
   /**
    * \brief function called every update
    */
@@ -179,10 +198,9 @@ private:
     if (!frequency_ || zero_seen_) {
       frame_result.emplace<Stale>();
     } else {
-      if (ok_params_.min_frequency < frequency_ && frequency_ < ok_params_.max_frequency) {
+      if (is_ok(frequency_.value())) {
         frame_result.emplace<Ok>();
-      } else if ((warn_params_.min_frequency <= frequency_ && frequency_ <= ok_params_.min_frequency) ||
-                 (ok_params_.max_frequency <= frequency_ && frequency_ <= warn_params_.max_frequency)) {
+      } else if (is_warn(frequency_.value())) {
         frame_result.emplace<Warn>();
       } else {
         frame_result.emplace<Error>();
@@ -243,17 +261,21 @@ private:
     ss << std::fixed << std::setprecision(2) << ok_params_.min_frequency;
     stat.add("Minimum OK rate threshold", ss.str());
 
-    ss.str("");  // reset contents
-    ss << std::fixed << std::setprecision(2) << ok_params_.max_frequency;
-    stat.add("Maximum OK rate threshold", ss.str());
+    if (ok_params_.max_frequency) {
+      ss.str("");  // reset contents
+      ss << std::fixed << std::setprecision(2) << ok_params_.max_frequency.value();
+      stat.add("Maximum OK rate threshold", ss.str());
+    }
 
     ss.str("");  // reset contents
     ss << std::fixed << std::setprecision(2) << warn_params_.min_frequency;
     stat.add("Minimum WARN rate threshold", ss.str());
 
-    ss.str("");  // reset contents
-    ss << std::fixed << std::setprecision(2) << warn_params_.max_frequency;
-    stat.add("Maximum WARN rate threshold", ss.str());
+    if (warn_params_.max_frequency) {
+      ss.str("");  // reset contents
+      ss << std::fixed << std::setprecision(2) << warn_params_.max_frequency.value();
+      stat.add("Maximum WARN rate threshold", ss.str());
+    }
 
     ss.str("");  // reset contents
     ss << get_num_observations(candidate_state_);
