@@ -227,7 +227,9 @@ private:
 
     // If the classify result is same as previous one, count the number of observation
     // Otherwise, update candidate
-    if (candidate_state_.index() == frame_result.index()) {  // if result has the same status as candidate
+    if (candidate_state_.index() == frame_result.index() &&
+        candidate_state_.index() != current_state_.index()) {
+      // if result has the same status as candidate but differenct from current
       std::visit([](auto& s){
         s.num_observations += 1;
       }, candidate_state_);
@@ -253,9 +255,25 @@ private:
     ss << std::fixed << std::setprecision(2) << frequency_.value_or(0.0);
     stat.add("Publish rate", ss.str());
 
+    ss.str(""); // reset contents
+    ss << get_level_string(get_level(current_state_));
+    stat.add("Effective rate status", ss.str());
+
+    ss.str(""); // reset contents
+    ss << get_level_string(get_level(candidate_state_));
+    stat.add("Candidate rate status", ss.str());
+
+    ss.str(""); // reset contents
+    ss << get_num_observations(candidate_state_);
+    stat.add("Candidate status observed frames", ss.str());
+
     ss.str("");  // reset contents
-    ss << get_level_string(get_level(frame_result));
-    stat.add("Rate status", ss.str());
+    ss << num_frame_skipped;
+    stat.add("Assumed skipped frames", ss.str());
+
+    ss.str("");  // reset contents
+    ss << num_frame_transition_;
+    stat.add("Observed frames transition threshold", ss.str());
 
     ss.str("");  // reset contents
     ss << std::fixed << std::setprecision(2) << ok_params_.min_frequency;
@@ -276,18 +294,6 @@ private:
       ss << std::fixed << std::setprecision(2) << warn_params_.max_frequency.value();
       stat.add("Maximum WARN rate threshold", ss.str());
     }
-
-    ss.str("");  // reset contents
-    ss << get_num_observations(candidate_state_);
-    stat.add("Observed frames", ss.str());
-
-    ss.str("");  // reset contents
-    ss << num_frame_skipped;
-    stat.add("Assumed skipped frames", ss.str());
-
-    ss.str("");  // reset contents
-    ss << num_frame_transition_;
-    stat.add("Observed frames transition threshold", ss.str());
   }
 
 protected:
