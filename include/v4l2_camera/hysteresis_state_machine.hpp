@@ -43,7 +43,7 @@ struct Error : public StateBase
 
 using StateHolder = std::variant<Stale, Ok, Warn, Error>;
 
-static StateHolder generate_state(const DiagnosticStatus_t & state)
+static inline StateHolder generate_state(const DiagnosticStatus_t & state)
 {
   switch (state) {
     case diagnostic_msgs::msg::DiagnosticStatus::STALE:
