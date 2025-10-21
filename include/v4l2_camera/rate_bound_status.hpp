@@ -19,7 +19,6 @@
 
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
 
-#include <chrono>
 #include <iomanip>
 #include <limits>
 #include <mutex>
@@ -28,7 +27,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <variant>
 
 #include <v4l2_camera/hysteresis_state_machine.hpp>
 
