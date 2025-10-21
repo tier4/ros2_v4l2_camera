@@ -40,7 +40,7 @@ namespace custom_diagnostic_tasks
  */
 struct RateBoundStatusParam
 {
-  RateBoundStatusParam(const double min_freq, const std::optional<double> max_freq = std::nullopt)
+  explicit RateBoundStatusParam(const double min_freq, const std::optional<double> max_freq = std::nullopt)
       : min_frequency(min_freq), max_frequency(max_freq){}
 
   double min_frequency;
@@ -82,7 +82,7 @@ class RateBoundStatus : public diagnostic_updater::DiagnosticTask
       : DiagnosticTask(name), ok_params_(ok_params), warn_params_(warn_params),
         num_frame_transition_(num_frame_transition),
         zero_seen_(false),
-        hysteresys_state_machine_(num_frame_transition, immediate_error_report,
+        hysteresis_state_machine_(num_frame_transition, immediate_error_report,
                                   immediate_relax_state),
         current_state_(diagnostic_msgs::msg::DiagnosticStatus::STALE)
   {
@@ -157,7 +157,7 @@ class RateBoundStatus : public diagnostic_updater::DiagnosticTask
     std::unique_lock<std::mutex> lock(lock_);
 
     // classify the current observation
-    DiagnosticStatus_t frame_result;
+    DiagnosticStatus_t frame_result{};
     if (!frequency_ || zero_seen_) {
       frame_result = diagnostic_msgs::msg::DiagnosticStatus::STALE;
     } else {
@@ -189,7 +189,7 @@ class RateBoundStatus : public diagnostic_updater::DiagnosticTask
     }
 
     // Update state using hysteresis
-    current_state_ = hysteresys_state_machine_.update_state(frame_result, current_state_);
+    current_state_ = hysteresis_state_machine_.update_state(frame_result, current_state_);
     if (!is_valid_observation && num_frame_skipped >= num_frame_transition_) {
       current_state_ = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     }
@@ -205,11 +205,11 @@ class RateBoundStatus : public diagnostic_updater::DiagnosticTask
     stat.add("Effective rate status", ss.str());
 
     ss.str(""); // reset contents
-    ss << get_level_string(hysteresys_state_machine_.get_candidate_level());
+    ss << get_level_string(hysteresis_state_machine_.get_candidate_level());
     stat.add("Candidate rate status", ss.str());
 
     ss.str(""); // reset contents
-    ss << hysteresys_state_machine_.get_candidate_num_observation();
+    ss << hysteresis_state_machine_.get_candidate_num_observation();
     stat.add("Candidate status observed frames", ss.str());
 
     ss.str("");  // reset contents
@@ -250,7 +250,7 @@ protected:
   std::optional<double> previous_frame_timestamp_;
   std::mutex lock_;
 
-  HysteresisStateMachine hysteresys_state_machine_;
+  HysteresisStateMachine hysteresis_state_machine_;
   DiagnosticStatus_t current_state_;
 
   std::shared_ptr<rclcpp::Clock> clock_;

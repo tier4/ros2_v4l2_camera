@@ -15,7 +15,7 @@ using DiagnosticStatus_t = unsigned char;
 // Helper struct to express state machine nodes
 struct StateBase
 {
-  StateBase(const DiagnosticStatus_t lv) : level(lv), num_observations(1) {}
+  explicit StateBase(const DiagnosticStatus_t lv) : level(lv), num_observations(1) {}
 
   DiagnosticStatus_t level;
   size_t num_observations;
@@ -43,7 +43,7 @@ struct Error : public StateBase
 
 using StateHolder = std::variant<Stale, Ok, Warn, Error>;
 
-StateHolder generate_state(const DiagnosticStatus_t & state)
+static StateHolder generate_state(const DiagnosticStatus_t & state)
 {
   switch (state) {
     case diagnostic_msgs::msg::DiagnosticStatus::STALE:
@@ -100,7 +100,7 @@ to WARN until successive `num_frame_transition` WARNs are observed.
    * \param immediate_relax_state if true, reported state will immediately
             change if better state that the current one is observed
    */
-  HysteresisStateMachine(
+  explicit HysteresisStateMachine(
     const size_t num_frame_transition = 1, const bool immediate_error_report = false,
     const bool immediate_relax_state = true)
   : num_frame_transition_(num_frame_transition),
@@ -113,7 +113,7 @@ to WARN until successive `num_frame_transition` WARNs are observed.
   }
 
   /**
-   * \bried update internal state and returns the filtered state
+   * \brief update internal state and returns the filtered state
    */
   DiagnosticStatus_t update_state(const DiagnosticStatus_t &observation,
                                   const DiagnosticStatus_t &current_level)
