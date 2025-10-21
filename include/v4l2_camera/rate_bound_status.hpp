@@ -187,10 +187,12 @@ class RateBoundStatus : public diagnostic_updater::DiagnosticTask
     }
 
     // Update state using hysteresis
-    current_state_ = hysteresis_state_machine_.update_state(frame_result, current_state_);
+    hysteresis_state_machine_.update_state(frame_result);
     if (!is_valid_observation && num_frame_skipped >= num_frame_transition_) {
-      current_state_ = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+      hysteresis_state_machine_.set_current_state_level(
+          diagnostic_msgs::msg::DiagnosticStatus::ERROR);
     }
+    current_state_ = hysteresis_state_machine_.get_current_state_level();
 
     stat.summary(current_state_, generate_msg(current_state_));
 
@@ -215,7 +217,7 @@ class RateBoundStatus : public diagnostic_updater::DiagnosticTask
     stat.add("Assumed skipped frames", ss.str());
 
     ss.str("");  // reset contents
-    ss << num_frame_transition_;
+    ss << hysteresis_state_machine_.get_num_frame_transition();
     stat.add("Observed frames transition threshold", ss.str());
 
     ss.str("");  // reset contents

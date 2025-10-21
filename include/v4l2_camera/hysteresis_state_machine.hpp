@@ -1,3 +1,17 @@
+// Copyright 2025 TIER IV, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #ifndef HYSTERESIS_STATE_MACHINE_HPP_
 #define HYSTERESIS_STATE_MACHINE_HPP_
 
@@ -59,8 +73,9 @@ static inline StateHolder generate_state(const DiagnosticStatus_t & state)
   }
 }
 
-static std::string get_level_string(DiagnosticStatus_t level) {
-  switch(level) {
+static std::string get_level_string(DiagnosticStatus_t level)
+{
+  switch (level) {
     case diagnostic_msgs::msg::DiagnosticStatus::OK:
       return "OK";
     case diagnostic_msgs::msg::DiagnosticStatus::WARN:
@@ -85,7 +100,7 @@ static size_t get_num_observations(const StateHolder & state)
 }
 
 class HysteresisStateMachine
- {
+{
 public:
   /**
    * \brief Constructs HysteresisStateMachine, which implements a smoothing
@@ -105,7 +120,8 @@ to WARN until successive `num_frame_transition` WARNs are observed.
     const bool immediate_relax_state = true)
   : num_frame_transition_(num_frame_transition),
     immediate_error_report_(immediate_error_report),
-    immediate_relax_state_(immediate_relax_state)
+    immediate_relax_state_(immediate_relax_state),
+    current_state_(Stale{})
   {
     if (num_frame_transition < 1) {
       num_frame_transition_ = 1;
@@ -115,13 +131,13 @@ to WARN until successive `num_frame_transition` WARNs are observed.
   /**
    * \brief update internal state and returns the filtered state
    */
-  DiagnosticStatus_t update_state(const DiagnosticStatus_t &observation,
-                                  const DiagnosticStatus_t &current_level)
+  void update_state(const DiagnosticStatus_t& observation)
   {
     // If the classify result is same as previous one and the observation is
     // different from the current one, increment the number of observation
     // Otherwise, update candidate
     auto candidate_level = get_level(candidate_state_);
+    auto current_level = get_level(current_state_);
     if (candidate_level == observation && candidate_level != current_level) {
       std::visit([](auto & s) { s.num_observations += 1; }, candidate_state_);
     } else {
@@ -134,16 +150,17 @@ to WARN until successive `num_frame_transition` WARNs are observed.
     // - Or the observed state has lower level than the current one (i.e., the state is improved)
     bool is_immediate_error =
       (immediate_error_report_ && std::holds_alternative<Error>(candidate_state_));
-    bool observed_over_threshold = (get_num_observations(candidate_state_) >= num_frame_transition_);
+    bool observed_over_threshold =
+      (get_num_observations(candidate_state_) >= num_frame_transition_);
     bool is_immediate_relax =
-        (immediate_relax_state_ && get_level(candidate_state_) < current_level);
+      (immediate_relax_state_ && get_level(candidate_state_) < current_level);
 
     DiagnosticStatus_t updated_level = current_level;
     if (is_immediate_error || observed_over_threshold || is_immediate_relax) {
       updated_level = get_level(candidate_state_);
     }
 
-    return updated_level;
+    current_state_ = generate_state(updated_level);
   }
 
   DiagnosticStatus_t get_candidate_level() {
@@ -154,12 +171,21 @@ to WARN until successive `num_frame_transition` WARNs are observed.
     return get_num_observations(candidate_state_);
   }
 
+  size_t get_num_frame_transition() { return num_frame_transition_; }
+
+  DiagnosticStatus_t get_current_state_level() {
+    return get_level(current_state_);
+  }
+
+  void set_current_state_level(const DiagnosticStatus_t & state) {
+    current_state_ = generate_state(state);
+  }
 protected:
   size_t num_frame_transition_;
   bool immediate_error_report_;
   bool immediate_relax_state_;
   StateHolder candidate_state_;
-
+  StateHolder current_state_;
 };  // class HysteresisStateMachine
 
 }  // namespace custom_diagnostic_tasks
