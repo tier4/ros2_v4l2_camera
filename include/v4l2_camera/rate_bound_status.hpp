@@ -239,6 +239,15 @@ class RateBoundStatus : public diagnostic_updater::DiagnosticTask
       ss << std::fixed << std::setprecision(2) << warn_params_.max_frequency.value();
       stat.add("Maximum WARN rate threshold", ss.str());
     }
+
+    ss.str("");  // reset contents
+    ss << (hysteresis_state_machine_.get_immediate_error_report_param() ? "true" : "false");
+    stat.add("Immediate error report", ss.str());
+
+    ss.str("");  // reset contents
+    ss << (hysteresis_state_machine_.get_immediate_relax_state_param() ? "true" : "false");
+    stat.add("Immediate relax state", ss.str());
+
   }
 
 protected:

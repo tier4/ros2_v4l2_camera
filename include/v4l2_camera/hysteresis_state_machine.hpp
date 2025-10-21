@@ -180,6 +180,12 @@ to WARN until successive `num_frame_transition` WARNs are observed.
   void set_current_state_level(const DiagnosticStatus_t & state) {
     current_state_ = generate_state(state);
   }
+
+  bool get_immediate_error_report_param() { return immediate_error_report_; }
+
+  bool get_immediate_relax_state_param() { return immediate_relax_state_; }
+
+
 protected:
   size_t num_frame_transition_;
   bool immediate_error_report_;
