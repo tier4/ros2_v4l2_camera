@@ -258,17 +258,26 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           "rate bound check");
       diag_composer_->addTask(&rate_bound_status);
 
-      double target_frequency = publish_rate_;
-      if (target_frequency < 0) {
+      double target_frequency = 10.0;
+      if (publish_rate_ < 0) {
         if (std::abs(time_per_frame_.value()[1]) < std::numeric_limits<double>::epsilon() * 1e2) {
           // time_per_frame_ may be [0, 0] by default in some environments
-          // In that case, diagnostics will be published at a rate between the min and max OK rate values
-          target_frequency = (min_ok_rate_.value() + max_ok_rate_.value()) / 2;
+          // In that case, diagnostics will be published at value specified by parameter
+          target_frequency = diag_publish_rate;
         } else {
-          target_frequency =
+          // time_per_frame_ may not equal to the actual frame rate. In this
+          // case, time_per_frame_ commonly represents the maximum frequency of
+          // the device.
+          double device_reported_frequency =
               static_cast<double>(time_per_frame_.value()[1]) / time_per_frame_.value()[0];
+          target_frequency = std::min(diag_publish_rate, device_reported_frequency);
         }
+      } else {
+        // This is the case that publish rate is throttle. In this case align
+        // diag rate to image publish rate
+        target_frequency = publish_rate_;
       }
+
       diag_updater_->setPeriod(1./target_frequency);  // align diag rate and ideal topic rate
 
       bool is_v4l2_buffer_flag_error_detected = true;
