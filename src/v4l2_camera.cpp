@@ -192,7 +192,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   bool immediate_relax_state = declare_parameter<bool>("immediate_relax_state", true);
   double diag_publish_rate = declare_parameter<double>("diag_publish_rate", 10.0);
 
-  // Get upper bound threshods as optional
+  // Get upper bound thresholds as optional
   auto get_optional_parameter = [this](const std::string &param_name) {
     declare_parameter(param_name, rclcpp::ParameterType::PARAMETER_DOUBLE);
     rclcpp::Parameter param;
