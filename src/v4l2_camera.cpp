@@ -16,6 +16,7 @@
 #include "v4l2_camera/rate_bound_status.hpp"
 
 #include <diagnostic_updater/update_functions.hpp>
+#include <rclcpp/parameter_value.hpp>
 #include <rclcpp/qos.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include <diagnostic_updater/publisher.hpp>
@@ -185,10 +186,24 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Prepare diagnostics
   auto hardware_id = declare_parameter<std::string>("hardware_id", "");
   min_ok_rate_ = declare_parameter<double>("min_ok_rate", 9.0);
-  max_ok_rate_ = declare_parameter<double>("max_ok_rate", 11.0);
   min_warn_rate_ = declare_parameter<double>("min_warn_rate", 8.0);
-  max_warn_rate_ = declare_parameter<double>("max_warn_rate", 12.0);
   observed_frames_transition_ = declare_parameter<int>("observed_frames_transition", 3);
+  bool immediate_error_report = declare_parameter<bool>("immediate_error_report", false);
+  bool immediate_relax_state = declare_parameter<bool>("immediate_relax_state", true);
+  double diag_publish_rate = declare_parameter<double>("diag_publish_rate", 10.0);
+
+  // Get upper bound thresholds as optional
+  auto get_optional_parameter = [this](const std::string &param_name) {
+    declare_parameter(param_name, rclcpp::ParameterType::PARAMETER_DOUBLE);
+    rclcpp::Parameter param;
+    if (this->get_parameter(param_name, param)) {
+      return std::optional<double>(param.as_double());
+    } else {
+      return std::optional<double>{};
+    }
+  };
+  max_ok_rate_ = get_optional_parameter("max_ok_rate");
+  max_warn_rate_ = get_optional_parameter("max_warn_rate");
 
   diag_updater_ = std::make_shared<diagnostic_updater::Updater>(this);
   diag_updater_->setHardwareID(hardware_id.empty() ? "none" : hardware_id);
@@ -229,31 +244,40 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
   // Start capture thread
   capture_thread_ = std::thread{
-    [this]() -> void {
-      if (!time_per_frame_ || !min_ok_rate_ || !max_ok_rate_ || !min_warn_rate_ || !max_warn_rate_) {
+    [this, immediate_error_report, immediate_relax_state, diag_publish_rate]() -> void {
+      if (!time_per_frame_ || !min_ok_rate_ || !min_warn_rate_) {
         return;
       }
 
       // Setup diagnostics
       custom_diagnostic_tasks::RateBoundStatus rate_bound_status(
           this,
-          custom_diagnostic_tasks::RateBoundStatusParam(min_ok_rate_.value(), max_ok_rate_.value()),
-          custom_diagnostic_tasks::RateBoundStatusParam(min_warn_rate_.value(), max_warn_rate_.value()),
-          static_cast<size_t>(observed_frames_transition_), true,
+          custom_diagnostic_tasks::RateBoundStatusParam(min_ok_rate_.value(), max_ok_rate_),
+          custom_diagnostic_tasks::RateBoundStatusParam(min_warn_rate_.value(), max_warn_rate_),
+          static_cast<size_t>(observed_frames_transition_), immediate_error_report, immediate_relax_state,
           "rate bound check");
       diag_composer_->addTask(&rate_bound_status);
 
-      double target_frequency = publish_rate_;
-      if (target_frequency < 0) {
+      double target_frequency = 10.0;
+      if (publish_rate_ < 0) {
         if (std::abs(time_per_frame_.value()[1]) < std::numeric_limits<double>::epsilon() * 1e2) {
           // time_per_frame_ may be [0, 0] by default in some environments
-          // In that case, diagnostics will be published at a rate between the min and max OK rate values
-          target_frequency = (min_ok_rate_.value() + max_ok_rate_.value()) / 2;
+          // In that case, diagnostics will be published at value specified by parameter
+          target_frequency = diag_publish_rate;
         } else {
-          target_frequency =
+          // time_per_frame_ may not equal to the actual frame rate. In this
+          // case, time_per_frame_ commonly represents the maximum frequency of
+          // the device.
+          double device_reported_frequency =
               static_cast<double>(time_per_frame_.value()[1]) / time_per_frame_.value()[0];
+          target_frequency = std::min(diag_publish_rate, device_reported_frequency);
         }
+      } else {
+        // This is the case that publish rate is throttle. In this case align
+        // diag rate to image publish rate
+        target_frequency = publish_rate_;
       }
+
       diag_updater_->setPeriod(1./target_frequency);  // align diag rate and ideal topic rate
 
       bool is_v4l2_buffer_flag_error_detected = true;
