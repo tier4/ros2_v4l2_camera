@@ -139,14 +139,14 @@ bool V4L2Camera::validatePublishedImage(sensor_msgs::msg::Image const & img)
 {
   constexpr uint32_t maxReasonableDimension = 16384u;
   if (img.width == 0u || img.height == 0u) {
-    RCLCPP_WARN_THROTTLE(
-      get_logger(), *get_clock(), 5000,
+    RCLCPP_WARN(
+      get_logger(),
       "Skip publish: invalid dimensions %ux%u", img.width, img.height);
     return false;
   }
   if (img.width > maxReasonableDimension || img.height > maxReasonableDimension) {
-    RCLCPP_WARN_THROTTLE(
-      get_logger(), *get_clock(), 5000,
+    RCLCPP_WARN(
+      get_logger(),
       "Skip publish: dimensions exceed sanity bound (%ux%u)", img.width, img.height);
     return false;
   }
