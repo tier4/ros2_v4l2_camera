@@ -163,6 +163,9 @@ private:
   bool checkCameraInfo(
     sensor_msgs::msg::Image const & img,
     sensor_msgs::msg::CameraInfo const & ci);
+
+  /// True if width, height, step, and buffer size are consistent and match the active V4L2 format.
+  bool validatePublishedImage(sensor_msgs::msg::Image const & img);
 };
 
 }  // namespace v4l2_camera
