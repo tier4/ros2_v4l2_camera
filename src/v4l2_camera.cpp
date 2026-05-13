@@ -350,8 +350,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           img = convert(*img);
 #endif
           if (img == nullptr) {
-            RCLCPP_WARN_THROTTLE(
-              get_logger(), *get_clock(), 5000,
+            RCLCPP_WARN(
+              get_logger(),
               "Skip publish: pixel format conversion failed");
             continue;
           }
