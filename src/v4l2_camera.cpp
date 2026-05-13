@@ -792,6 +792,11 @@ bool V4L2Camera::checkCameraInfo(
 #ifdef ENABLE_CUDA
 sensor_msgs::msg::Image::UniquePtr V4L2Camera::convertOnGpu(sensor_msgs::msg::Image const & img)
 {
+  if (img.width == 0) {
+    RCLCPP_WARN_ONCE(get_logger(), "Received zero-width image; skipping GPU conversion");
+    return nullptr;
+  }
+
   if ((img.encoding != sensor_msgs::image_encodings::YUV422 &&
        img.encoding != sensor_msgs::image_encodings::YUV422_YUY2) ||
       output_encoding_ != sensor_msgs::image_encodings::RGB8) {
