@@ -135,6 +135,25 @@ static void diagnoseStreamLiveness(
   is_frame_updated = false;
 }  // static void diagnoseStreamLiveness
 
+bool V4L2Camera::validatePublishedImage(sensor_msgs::msg::Image const & img)
+{
+  constexpr uint32_t maxReasonableDimension = 16384u;
+  if (img.width == 0u || img.height == 0u) {
+    RCLCPP_WARN(
+      get_logger(),
+      "Skip publish: invalid dimensions %ux%u", img.width, img.height);
+    return false;
+  }
+  if (img.width > maxReasonableDimension || img.height > maxReasonableDimension) {
+    RCLCPP_WARN(
+      get_logger(),
+      "Skip publish: dimensions exceed sanity bound (%ux%u)", img.width, img.height);
+    return false;
+  }
+
+  return true;
+}
+
 V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 : rclcpp::Node{"v4l2_camera", options},
   canceled_{false}
@@ -316,7 +335,10 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
           continue;
         }
-        if(publish_next_frame_ == false){
+        if (publish_next_frame_ == false) {
+          continue;
+        }
+        if (!validatePublishedImage(*img)) {
           continue;
         }
 
@@ -327,6 +349,15 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 #else
           img = convert(*img);
 #endif
+          if (img == nullptr) {
+            RCLCPP_WARN(
+              get_logger(),
+              "Skip publish: pixel format conversion failed");
+            continue;
+          }
+          if (!validatePublishedImage(*img)) {
+            continue;
+          }
         }
         img->header.stamp = stamp;
         img->header.frame_id = camera_frame_id_;
