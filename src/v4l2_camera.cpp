@@ -247,7 +247,9 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     diag_composer_->addTask(device_node_existence_diag_.get());
   }
 
-  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
+  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(
+    get_node_base_interface(), get_node_services_interface(),
+    get_node_logging_interface(), camera_->getCameraName());
 #ifdef ENABLE_CUDA
   src_dev_ = std::allocate_shared<GPUMemoryManager>(allocator_);
   dst_dev_ = std::allocate_shared<GPUMemoryManager>(allocator_);
