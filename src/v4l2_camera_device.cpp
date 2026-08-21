@@ -35,6 +35,12 @@
 using v4l2_camera::V4l2CameraDevice;
 using sensor_msgs::msg::Image;
 
+namespace {
+// Here assume camera is at least 10Hz -> total retry time would exceed 100ms
+constexpr int setControlMaxAttempts = 25;
+constexpr auto setControlRetryDelay = std::chrono::milliseconds{5};
+}
+
 V4l2CameraDevice::V4l2CameraDevice(std::string device, bool use_v4l2_buffer_timestamps, rclcpp::Duration timestamp_offset_duration)
 : device_{std::move(device)}, use_v4l2_buffer_timestamps_{use_v4l2_buffer_timestamps}, timestamp_offset_{timestamp_offset_duration}
 {
@@ -366,17 +372,40 @@ bool V4l2CameraDevice::setControlValue(uint32_t id, int32_t value)
   auto ctrl = v4l2_control{};
   ctrl.id = id;
   ctrl.value = value;
-  if (-1 == ioctl(fd_, VIDIOC_S_CTRL, &ctrl)) {
-    auto control = std::find_if(
-      controls_.begin(), controls_.end(),
-      [id](Control const & c) {return c.id == id;});
-    RCLCPP_ERROR(
-      rclcpp::get_logger("v4l2_camera"),
-      "Failed setting value for control %s to %s: %s (%s)", control->name.c_str(),
-      std::to_string(value).c_str(), strerror(errno), std::to_string(errno).c_str());
-    return false;
+
+  int error = 0;
+  int attempts = 0;
+  for (; attempts < setControlMaxAttempts; attempts++) {
+    if (ioctl(fd_, VIDIOC_S_CTRL, &ctrl) == 0) {
+      // success
+      return true;
+    }
+
+    error = errno;
+    if (error != EBUSY) {
+      // Assume non-EBUSY errors are fatal. return false immediately
+      break;
+    }
+
+    // Only if ioctl failed due to device/resource busy, retry configuration after some sleep
+    std::this_thread::sleep_for(setControlRetryDelay);
   }
-  return true;
+
+  auto control = std::find_if(controls_.begin(), controls_.end(),
+                              [id](Control const &c) { return c.id == id; });
+
+  auto message = std::ostringstream{};
+  if (error == EBUSY) {
+    message << "Failed setting value for control " << control->name << " to " << value
+            << " after " << attempts << " attempts: " << strerror(error) << "(" << error << ")";
+  } else {
+    // Fatal error
+    message << "Failed setting value for control" << control->name << " to " << value
+            << ": " << strerror(error) << "(" << error << ")";
+  }
+
+  RCLCPP_ERROR_STREAM(rclcpp::get_logger("v4l2_camera"), message.str());
+  return false;
 }
 
 bool V4l2CameraDevice::requestDataFormat(const PixelFormat & format)
