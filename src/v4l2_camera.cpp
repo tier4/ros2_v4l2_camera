@@ -15,6 +15,7 @@
 #include "v4l2_camera/v4l2_camera.hpp"
 #include "v4l2_camera/rate_bound_status.hpp"
 
+#include <cctype>
 #include <diagnostic_updater/update_functions.hpp>
 #include <rclcpp/parameter_value.hpp>
 #include <rclcpp/qos.hpp>
@@ -503,15 +504,32 @@ void V4L2Camera::createParameters()
   }
 
   // Control parameters
-  auto toParamName =
-    [](std::string name) {
-      std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-      name.erase(std::remove(name.begin(), name.end(), ','), name.end());
-      name.erase(std::remove(name.begin(), name.end(), '('), name.end());
-      name.erase(std::remove(name.begin(), name.end(), ')'), name.end());
-      std::replace(name.begin(), name.end(), ' ', '_');
-      return name;
-    };
+  auto toParamName = [](std::string name) {
+    // Normalize control names using v4l2-ctl's naming convention:
+    // lowercase letters, replace each run of non-alphanumeric characters with
+    // '_', and trim leading and trailing underscores.
+    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) {
+      return static_cast<char>(std::tolower(c));
+    });
+    std::replace_if(
+        name.begin(), name.end(),
+        [](const unsigned char c) { return !std::isalnum(c); },
+        static_cast<char>('_'));
+    // Collapse consecutive underscores.
+    auto new_end =
+        std::unique(name.begin(), name.end(), [](auto left, auto right) {
+          return left == '_' && right == '_';
+        });
+    name.erase(new_end, name.end());
+    // Trim leading and trailing underscores.
+    if (!name.empty() && name.back() == '_') {
+      name.pop_back();
+    }
+    if (!name.empty() && name.front() == '_') {
+      name.erase(0, 1);
+    }
+    return name;
+  };
 
   for (auto const & c : camera_->getControls()) {
     auto name = toParamName(c.name);
