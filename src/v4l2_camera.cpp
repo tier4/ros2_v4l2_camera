@@ -516,11 +516,14 @@ void V4L2Camera::createParameters()
         [](const unsigned char c) { return !std::isalnum(c); },
         static_cast<char>('_'));
     // Collapse consecutive underscores.
-    auto new_end =
-        std::unique(name.begin(), name.end(), [](auto left, auto right) {
-          return left == '_' && right == '_';
-        });
-    name.erase(new_end, name.end());
+    std::string normalized;
+    normalized.reserve(name.size());
+    for (char c : name) {
+      if (c != '_' || normalized.empty() || normalized.back() != '_') {
+        normalized.push_back(c);
+      }
+    }
+    name = std::move(normalized);
     // Trim leading and trailing underscores.
     if (!name.empty() && name.back() == '_') {
       name.pop_back();
