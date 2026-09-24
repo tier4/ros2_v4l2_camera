@@ -262,6 +262,29 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     return;
   }
 
+  // The GW5300 ISP does not retain control values written before VIDIOC_STREAMON, so
+  // re-apply the controls that were explicitly specified as parameter overrides
+  // (YAML / launch) now that the stream is running. Controls that were not specified are
+  // left alone, to keep the extra I2C traffic to the ISP at a minimum.
+  auto specified_controls = std::vector<rclcpp::Parameter>{};
+  for (auto const & [param_name, param_value] :
+       get_node_parameters_interface()->get_parameter_overrides()) {
+    if (control_name_to_id_.find(param_name) != control_name_to_id_.end()) {
+      specified_controls.emplace_back(param_name, param_value);
+    }
+  }
+
+  RCLCPP_INFO(
+    get_logger(), "Re-applying %zu control parameter(s) after streaming start",
+    specified_controls.size());
+
+  for (auto const & param : specified_controls) {
+    if (!handleParameter(param)) {
+      RCLCPP_ERROR(
+        get_logger(), "Failed re-applying control parameter: %s", param.get_name().c_str());
+    }
+  }
+
   // Start capture thread
   capture_thread_ = std::thread{
     [this, immediate_error_report, immediate_relax_state, diag_publish_rate]() -> void {
